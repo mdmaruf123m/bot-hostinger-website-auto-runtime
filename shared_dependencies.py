@@ -1,8 +1,8 @@
-"""Best-effort dependency discovery and shared environment caches for uploaded bots.
+"""Best-effort dependency discovery and app-scoped environment caches for uploaded bots.
 
 Explicit language manifests remain authoritative. When absent (or incomplete), common
-static imports are inferred. Cache keys represent compatible dependency bundles; bots
-with the same bundle reuse one installed environment rather than installing it again.
+static imports are inferred. The caller supplies a cache root unique to one user/app;
+compatible starts of that same app reuse its environment, never another app's bundle.
 """
 from __future__ import annotations
 
@@ -205,7 +205,7 @@ def prepare_python(project_root: str, cache_root: str, log) -> tuple[str, dict]:
     lock = _lock_for("python:" + path)
     with lock:
         if _complete(path) and os.path.isfile(python_bin):
-            _say(log, f"Reusing shared Python dependency environment ({len(existing_lines)+len(extra)} declared/inferred package entries).")
+            _say(log, f"Reusing this bot's cached Python dependency environment ({len(existing_lines)+len(extra)} declared/inferred package entries).")
             return python_bin, {"ok": True, "cached": True, "packages": len(existing_lines)+len(extra)}
         _begin_bundle(path)
         venv_dir = os.path.join(path, "venv")
@@ -365,7 +365,7 @@ def prepare_node(project_root: str, cache_root: str, log) -> tuple[dict, dict]:
                 return {}, {"ok": False, "error": err}
             _mark_bundle(path)
         else:
-            _say(log, f"Reusing shared Node.js dependency environment ({len(deps)} packages).")
+            _say(log, f"Reusing this bot's cached Node.js dependency environment ({len(deps)} packages).")
     _link_cache(path, project_root, "node_modules", log)
     env = {"NODE_PATH": os.path.join(path, "node_modules") + (os.pathsep + os.environ["NODE_PATH"] if os.environ.get("NODE_PATH") else "")}
     return env, {"ok": True, "cached": was_cached, "packages": len(deps)}
@@ -470,7 +470,7 @@ def prepare_php(project_root: str, cache_root: str, log) -> tuple[dict, dict]:
                 return {}, {"ok": False, "error": err}
             _mark_bundle(path)
         else:
-            _say(log, f"Reusing shared PHP Composer dependency environment ({len(deps)} packages).")
+            _say(log, f"Reusing this bot's cached PHP Composer dependency environment ({len(deps)} packages).")
     _link_cache(path, project_root, "vendor", log)
     env = {"COMPOSER_VENDOR_DIR": os.path.join(path, "vendor"), "COMPOSER_CACHE_DIR": os.path.join(cache_root, "composer-downloads")}
     return env, {"ok": True, "cached": was_cached, "packages": len(deps)}

@@ -422,6 +422,11 @@ def validate_project(extract_dir):
 def venv_path_for(user, app_name):
     return safe_join(VENV_FOLDER, f"{user}__{app_name}")
 
+def dependency_cache_for(user, app_name):
+    """Return a stable but app-isolated runtime dependency cache directory."""
+    cache_id = hashlib.sha256(f"{user}\0{app_name}".encode("utf-8")).hexdigest()
+    return os.path.join(DATA_DIR, "runtime_dependencies", cache_id)
+
 def file_hash(path):
     if not os.path.exists(path):
         return None
@@ -685,12 +690,12 @@ def start_app_process(user, name, db):
     def log_cb(text):
         append_log(log_path, text)
 
-    shared_cache = os.path.join(DATA_DIR, "shared_dependencies")
+    app_dependency_cache = dependency_cache_for(user, name)
     runtime_env = {}
     if kind == "python":
         if not shutil.which("python3"):
             return {"ok": False, "error": "Python 3 is not installed in the hosting runtime"}
-        python_bin, install_res = prepare_python(project_root, shared_cache, log_cb)
+        python_bin, install_res = prepare_python(project_root, app_dependency_cache, log_cb)
         if not install_res.get("ok"):
             return {"ok": False, "error": install_res.get("error", "Python dependency installation failed")}
         cmd = [python_bin, entry]
@@ -698,7 +703,7 @@ def start_app_process(user, name, db):
         node_bin = shutil.which("node")
         if not node_bin:
             return {"ok": False, "error": "Node.js is not installed in the hosting runtime"}
-        runtime_env, install_res = prepare_node(project_root, shared_cache, log_cb)
+        runtime_env, install_res = prepare_node(project_root, app_dependency_cache, log_cb)
         if not install_res.get("ok"):
             return {"ok": False, "error": install_res.get("error", "Node.js dependency installation failed")}
         if entry == "__npm_start__":
@@ -712,7 +717,7 @@ def start_app_process(user, name, db):
         php_bin = shutil.which("php")
         if not php_bin:
             return {"ok": False, "error": "PHP CLI is not installed in the hosting runtime; add it to the host image"}
-        runtime_env, install_res = prepare_php(project_root, shared_cache, log_cb)
+        runtime_env, install_res = prepare_php(project_root, app_dependency_cache, log_cb)
         if not install_res.get("ok"):
             return {"ok": False, "error": install_res.get("error", "PHP dependency installation failed")}
         cmd = [php_bin, entry]
@@ -1502,6 +1507,9 @@ def delete_app_route(name):
     venv_dir = venv_path_for(user_name, name)
     if os.path.exists(venv_dir):
         shutil.rmtree(venv_dir, ignore_errors=True)
+    dependency_cache = dependency_cache_for(user_name, name)
+    if os.path.exists(dependency_cache):
+        shutil.rmtree(dependency_cache, ignore_errors=True)
     key = app_settings_key(user_name, name)
     db.get("app_settings", {}).pop(key, None)
     db.get("start_times", {}).pop(key, None)

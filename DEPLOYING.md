@@ -15,9 +15,9 @@ Where several runtimes are present in one folder, the matching manifest (`compos
 - Python source imports are inspected when the ZIP has no (or incomplete) `requirements.txt`; common import/distribution-name differences such as `telegram` → `python-telegram-bot` and `yaml` → `PyYAML` are mapped. Other imports are tried using their import name as a PyPI name.
 - Node.js `require()` and `import` statements are scanned and missing packages are inferred by their npm package name. Existing `package.json` dependency sections and lockfiles are respected.
 - PHP Composer packages are taken from `composer.json`; only a small list of well-known namespaces can be mapped automatically when Composer metadata is missing. PHP namespaces do not uniquely identify Packagist packages, so unknown packages need `composer.json`.
-- Installed environments are shared/cached by compatible dependency bundle. A later bot with the same dependency specifications can reuse the installed environment. Different versions or conflicting manifests are kept in separate bundles rather than silently changing a running bot's packages. Node/Python/PHP package-manager download caches are also shared.
+- Each user/app pair gets its own dependency directory and package-manager cache. A bot can reuse its own compatible bundle on a later start, but another bot—even with identical package names—gets a separate install. Deleting an app removes that app's dependency cache. This prevents package environments from being mixed between bots; it costs more disk/network and avoids cross-app version changes.
 - Static scanning cannot discover dynamically constructed imports, private packages, system libraries, PHP extensions, or every ambiguous import/package name. A manifest with exact package names and versions remains the reliable option. If inferred installation fails, add/fix the language manifest and check the bot log.
-- Reusing files and avoiding repeated installs mainly saves storage, network traffic, and startup time. Because each bot is a separate process, a library loaded by two running bots still occupies process memory twice; shared files do not guarantee lower RAM use.
+- Reusing one bot's own installed environment mainly saves that bot's startup time and repeat downloads. Because every bot is a separate process, installed packages do not guarantee lower runtime RAM use.
 
 The dependency manager and executable must exist in the hosting image. The included `Dockerfile` installs Python, Node.js/npm, PHP CLI, and Composer for Railway or Render Docker deployments. The outer panel itself is still a Flask/Gunicorn service.
 
@@ -25,7 +25,7 @@ For an admin-only Render test service, set `ALLOW_SIGNUP=false`, and set strong,
 
 ## Storage and hosting
 
-The panel writes `uploads/`, shared dependency bundles/caches, logs, and `database.json` under its application directory by default. Set `DATA_DIR=/data` and mount a persistent volume at `/data` in the provider dashboard to preserve them across redeploys/restarts. Without persistent storage, uploads, accounts, logs and runtime/package caches can be lost.
+The panel writes `uploads/`, per-app dependency environments/caches, logs, and `database.json` under its application directory by default. Set `DATA_DIR=/data` and mount a persistent volume at `/data` in the provider dashboard to preserve them across redeploys/restarts. Without persistent storage, uploads, accounts, logs and runtime/package caches can be lost.
 
 ## Important security limitation
 
