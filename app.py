@@ -16,6 +16,7 @@ from collections import defaultdict, deque
 
 from flask import Flask, render_template, render_template_string, request, redirect, url_for, session, jsonify, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
+from shared_dependencies import prepare_python, prepare_node, prepare_php
 
 # ============================================================
 # APP SETUP
@@ -684,24 +685,20 @@ def start_app_process(user, name, db):
     def log_cb(text):
         append_log(log_path, text)
 
+    shared_cache = os.path.join(DATA_DIR, "shared_dependencies")
+    runtime_env = {}
     if kind == "python":
         if not shutil.which("python3"):
             return {"ok": False, "error": "Python 3 is not installed in the hosting runtime"}
-        venv_dir = venv_path_for(user, name)
-        install_res = smart_install_python(project_root, venv_dir, log_cb)
+        python_bin, install_res = prepare_python(project_root, shared_cache, log_cb)
         if not install_res.get("ok"):
             return {"ok": False, "error": install_res.get("error", "Python dependency installation failed")}
-        try:
-            python_bin = ensure_venv(venv_dir)
-        except Exception as e:
-            append_log(log_path, f"Venv error: {e}\n")
-            return {"ok": False, "error": f"Environment setup fail: {e}"}
         cmd = [python_bin, entry]
     elif kind == "node":
         node_bin = shutil.which("node")
         if not node_bin:
             return {"ok": False, "error": "Node.js is not installed in the hosting runtime"}
-        install_res = smart_install_node(project_root, log_cb)
+        runtime_env, install_res = prepare_node(project_root, shared_cache, log_cb)
         if not install_res.get("ok"):
             return {"ok": False, "error": install_res.get("error", "Node.js dependency installation failed")}
         if entry == "__npm_start__":
@@ -715,7 +712,7 @@ def start_app_process(user, name, db):
         php_bin = shutil.which("php")
         if not php_bin:
             return {"ok": False, "error": "PHP CLI is not installed in the hosting runtime; add it to the host image"}
-        install_res = smart_install_php(project_root, log_cb)
+        runtime_env, install_res = prepare_php(project_root, shared_cache, log_cb)
         if not install_res.get("ok"):
             return {"ok": False, "error": install_res.get("error", "PHP dependency installation failed")}
         cmd = [php_bin, entry]
@@ -729,6 +726,7 @@ def start_app_process(user, name, db):
 
     env = os.environ.copy()
     env.update(device_env_vars(device))
+    env.update(runtime_env)
     env["PYTHONUNBUFFERED"] = "1"
 
     trim_log_if_needed(log_path)
