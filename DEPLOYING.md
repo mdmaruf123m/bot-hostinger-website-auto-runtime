@@ -12,6 +12,8 @@ Where several runtimes are present in one folder, the matching manifest (`compos
 
 The dependency manager and executable must exist in the hosting image. The included `Dockerfile` installs Python, Node.js/npm, PHP CLI, and Composer for Railway or Render Docker deployments. The outer panel itself is still a Flask/Gunicorn service.
 
+For an admin-only Render test service, set `ALLOW_SIGNUP=false`, and set strong, unique `ADMIN_PASS` and `SECRET_KEY` values in Render's environment settings. This blocks the app's default first-login account creation; use `/admin` for administrator access. The service still has a public URL, so keep the admin password private.
+
 ## Storage and hosting
 
 The panel writes `uploads/`, `venvs/`, logs, and `database.json` under its application directory by default. Set `DATA_DIR=/data` and mount a persistent volume at `/data` in the provider dashboard to preserve them across redeploys/restarts. Without persistent storage, uploads, accounts, logs and runtime environments can be lost.

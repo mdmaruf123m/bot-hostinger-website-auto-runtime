@@ -40,6 +40,7 @@ os.makedirs(VENV_FOLDER, exist_ok=True)
 os.makedirs(LOG_FOLDER, exist_ok=True)
 
 ADMIN_PASS_ENV = os.environ.get("ADMIN_PASS", "112233")
+ALLOW_SIGNUP = os.environ.get("ALLOW_SIGNUP", "true").strip().lower() in {"1", "true", "yes", "on"}
 ADMIN_INTERNAL_ID = "__admin__"   # internal folder/key used for admin's own unlimited apps
 
 ENTRY_FILES_PY = ["main.py", "bot.py", "app.py", "run.py", "start.py"]
@@ -1232,6 +1233,9 @@ def login():
         folder_id = user_folder_id(email)
 
         if email not in db["users"]:
+            if not ALLOW_SIGNUP:
+                error = "New account registration is disabled on this deployment. Use the administrator login."
+                return render_template_string(LOGIN_HTML, error=error)
             # first time seeing this email -> register it now
             db["users"][email] = {"pw_hash": generate_password_hash(pw), "vip": False, "created": int(time.time() * 1000)}
             save_db(db)
