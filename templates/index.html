@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MY HOST PANEL - Hosting Panel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+  :root {
+    --bg: #f3faf5; --surface: #ffffff; --surface-soft: #edf8f0; --primary: #159957;
+    --primary-dark: #0b713d; --accent: #30b96d; --text: #183326; --muted: #6c8275;
+    --line: #dcebe1; --danger: #d94f5d; --shadow: 0 10px 30px rgba(22, 83, 46, .08);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { background: radial-gradient(circle at 85% 0%, #e1f5e8 0, transparent 32%), var(--bg); color: var(--text); font-family: 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 18px; padding-bottom: 100px; min-height: 100vh; }
+  .user-bar { background: var(--surface); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-radius: 16px; margin-bottom: 18px; border: 1px solid var(--line); box-shadow: var(--shadow); }
+  .user-bar b { color: var(--primary-dark); }
+  .user-bar i { color: var(--primary); }
+  .logout-btn { color: var(--danger); text-decoration: none; font-size: 18px; }
+  .dashboard-heading { display:flex; justify-content:space-between; align-items:flex-end; gap:14px; margin: 6px 2px 16px; }
+  .dashboard-heading h1 { margin:0; font-size: clamp(22px, 5vw, 30px); letter-spacing:-.5px; }
+  .dashboard-heading p { margin:5px 0 0; color:var(--muted); font-size:13px; }
+  .refresh-label { color:var(--muted); font-size:11px; text-align:right; margin-bottom:6px; }
+  .stats-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:16px; }
+  .stat-card { background:var(--surface); border:1px solid var(--line); border-radius:15px; padding:13px; box-shadow:var(--shadow); }
+  .stat-card span { display:block; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.6px; }
+  .stat-card strong { display:block; color:var(--primary-dark); font-size:24px; margin-top:3px; }
+  .stat-card i { color:var(--primary); margin-right:5px; }
+  .upload-card { background: var(--surface); border: 2px dashed #9bd4af; border-radius: 18px; padding: 22px 20px; text-align: center; margin-bottom: 18px; box-shadow:var(--shadow); }
+  .upload-card i { font-size: 26px; color: var(--primary); }
+  .upload-card p { margin: 8px 0; font-size: 13px; color: var(--muted); }
+  #fileInput { display: none; }
+  .btn { padding: 10px 16px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: #fff; transition: transform .15s, box-shadow .15s, background .15s; }
+  .btn:hover { transform:translateY(-1px); box-shadow:0 5px 12px rgba(20,120,65,.15); }
+  .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff; }
+  .btn-danger { background: var(--danger); }
+  .btn-outline { background: var(--surface); color:var(--primary-dark); border: 1px solid #a9d8b8; }
+  .btn-small { padding: 7px 10px; font-size: 12px; }
+  #progressWrap { display:none; margin-top: 12px; background: #e4f1e8; border-radius: 8px; overflow: hidden; height: 8px; }
+  #progressBar { height: 100%; width: 0%; background: linear-gradient(90deg,var(--primary),var(--accent)); transition: width .2s; }
+  #deployStatus { font-size: 12px; margin-top: 8px; color:var(--primary-dark); min-height: 16px; }
+  .toolbar { display:flex; gap:8px; align-items:center; margin-bottom:12px; }
+  .search-wrap { flex:1; position:relative; }
+  .search-wrap i { position:absolute; left:12px; top:11px; color:var(--muted); font-size:13px; }
+  .search-input, .filter-select { width:100%; border:1px solid var(--line); border-radius:10px; background:var(--surface); color:var(--text); padding:9px 11px 9px 32px; outline:none; font-size:12px; }
+  .filter-select { width:auto; min-width:120px; padding-left:11px; }
+  .search-input:focus, .filter-select:focus { border-color:#76c992; box-shadow:0 0 0 3px #dff3e5; }
+  .app-card { background: var(--surface); border-radius: 18px; padding: 15px; margin-bottom: 14px; border: 1px solid var(--line); box-shadow:var(--shadow); }
+  .app-top { display: flex; justify-content: space-between; align-items: center; gap:10px; }
+  .app-name { font-weight: bold; font-size: 15px; color: var(--primary-dark); word-break:break-word; }
+  .status-pill { font-size: 10px; padding: 4px 9px; border-radius: 20px; border: 1px solid; white-space:nowrap; }
+  .status-run { color: #168b4f; border-color: #73c795; background: #e8f8ed; }
+  .status-off { color: var(--danger); border-color: #efabb2; background: #fff0f1; }
+  .meta-row { font-size: 11px; color: var(--muted); margin-top: 6px; display: flex; flex-wrap: wrap; gap: 10px; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; font-size: 12px; background: var(--surface-soft); padding: 8px 10px; border-radius: 10px; }
+  .toggle-switch { position: relative; width: 40px; height: 22px; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; cursor: pointer; inset: 0; background: #b7c7bd; border-radius: 22px; transition: .3s; }
+  .slider:before { content: ""; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .3s; box-shadow:0 1px 3px rgba(0,0,0,.2); }
+  input:checked + .slider { background: var(--primary); }
+  input:checked + .slider:before { transform: translateX(18px); }
+  .action-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
+  .action-grid a, .action-grid button { width: 100%; margin: 0; justify-content: center; }
+  .action-grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 6px; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(17,48,30,.52); backdrop-filter:blur(3px); z-index: 999; align-items: center; justify-content: center; padding: 15px; }
+  .modal-box { background: var(--surface); color:var(--text); border-radius: 16px; padding: 18px; width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; border: 1px solid var(--line); box-shadow:0 18px 50px rgba(15,55,30,.2); }
+  .modal-box h3 { color: var(--primary-dark); margin-top: 0; font-size: 15px; }
+  .close-btn { float: right; cursor: pointer; color: var(--danger); font-size: 18px; }
+  #logBox { background: #112018; color: #9cf0b7; font-family: monospace; font-size: 11px; padding: 10px; border-radius: 8px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+  .file-list { max-height: 200px; overflow-y: auto; margin: 10px 0; }
+  .file-item { display: flex; justify-content: space-between; padding: 8px; background: var(--surface-soft); border-radius: 8px; margin-bottom: 4px; font-size: 12px; cursor: pointer; }
+  #fileEditor { width: 100%; min-height: 250px; background: #112018; color: #b8f5c9; font-family: monospace; font-size: 12px; border-radius: 8px; padding: 10px; border: 1px solid #426d52; }
+  .validate-box { font-size: 12px; margin-top: 10px; padding: 10px; border-radius: 8px; }
+  .validate-ok { background: #e8f8ed; border: 1px solid #73c795; color: #168b4f; }
+  .validate-bad { background: #fff0f1; border: 1px solid #efabb2; color: #a62e3b; }
+  .empty-state { text-align: center; color:var(--muted); padding: 30px 0; font-size: 13px; }
+  .filter-empty { display:none; text-align:center; color:var(--muted); padding:24px 0; font-size:13px; }
+  @media (max-width:560px) { body{padding:12px;} .stats-grid{gap:7px;} .stat-card{padding:10px;} .stat-card strong{font-size:20px;} .toolbar{align-items:stretch; flex-wrap:wrap;} .search-wrap{min-width:100%;} .filter-select{flex:1;} .dashboard-heading{align-items:flex-start; flex-direction:column;} .refresh-label{text-align:left;} }
+</style>
+</head>
+<body>
+
+<div class="user-bar">
+  <span><i class="fa-solid fa-circle-user"></i> <b>{{ username }}</b></span>
+  <a href="/logout" class="logout-btn" title="Sign out"><i class="fa-solid fa-power-off"></i></a>
+</div>
+
+<div class="dashboard-heading">
+  <div>
+    <h1>Hosting overview</h1>
+    <p>Deploy, monitor, and manage your applications from one place.</p>
+  </div>
+  <div><div class="refresh-label" id="lastUpdated">Updated just now</div><button class="btn btn-outline btn-small" onclick="refreshDashboard()"><i class="fa-solid fa-arrows-rotate"></i> Refresh</button></div>
+</div>
+
+<div class="stats-grid" aria-label="Hosting summary">
+  <div class="stat-card"><span><i class="fa-solid fa-layer-group"></i> Total apps</span><strong id="totalApps">{{ apps|length }}</strong></div>
+  <div class="stat-card"><span><i class="fa-solid fa-circle-play"></i> Running</span><strong id="runningApps">{{ apps|selectattr('running')|list|length }}</strong></div>
+  <div class="stat-card"><span><i class="fa-solid fa-circle-pause"></i> Offline</span><strong id="offlineApps">{{ apps|rejectattr('running')|list|length }}</strong></div>
+</div>
+
+<div class="upload-card" id="dropZone">
+  <i class="fa-solid fa-cloud-arrow-up"></i>
+  <p>Upload a ZIP (maximum 200 MB). Python, Node.js and PHP runtime are detected from common entry files and manifests.</p>
+  <input type="file" id="fileInput" accept=".zip">
+  <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()"><i class="fa-solid fa-upload"></i> Choose ZIP</button>
+  <div id="progressWrap"><div id="progressBar"></div></div>
+  <div id="deployStatus"></div>
+</div>
+
+<div id="appsList">
+  <div class="toolbar" id="appToolbar">
+    <div class="search-wrap"><i class="fa-solid fa-magnifying-glass"></i><input id="appSearch" class="search-input" type="search" placeholder="Search your apps..." aria-label="Search apps"></div>
+    <select id="statusFilter" class="filter-select" aria-label="Filter apps by status"><option value="all">All statuses</option><option value="running">Running</option><option value="offline">Offline</option></select>
+  </div>
+  {% for a in apps %}
+  <div class="app-card" id="card_{{ a.name }}" data-name="{{ a.name|lower }}" data-status="{{ 'running' if a.running else 'offline' }}">
+    <div class="app-top">
+      <span class="app-name">{{ a.name }}</span>
+      {% if a.running %}<span class="status-pill status-run">RUNNING</span>{% else %}<span class="status-pill status-off">OFFLINE</span>{% endif %}
+    </div>
+    <div class="meta-row">
+      <span><i class="fa-solid fa-mobile-screen"></i> {{ a.device or "—" }}</span>
+      {% if a.running %}<span><i class="fa-solid fa-clock"></i> Runs for {{ a.remaining_run_min }}m</span>{% endif %}
+      {% if not a.running and a.remaining_wake_min %}<span><i class="fa-solid fa-hourglass-half"></i> {{ a.remaining_wake_min }}m until auto-on</span>{% endif %}
+    </div>
+
+    <div class="toggle-row">
+      <span>Auto-On (restart after sleep)</span>
+      <label class="toggle-switch"><input type="checkbox" {% if a.auto_on %}checked{% endif %} onchange="toggleSetting('{{ a.name }}','auto_on',this)"><span class="slider"></span></label>
+    </div>
+    <div class="toggle-row">
+      <span>Auto-Restart (restart after a crash)</span>
+      <label class="toggle-switch"><input type="checkbox" {% if a.auto_restart %}checked{% endif %} onchange="toggleSetting('{{ a.name }}','auto_restart',this)"><span class="slider"></span></label>
+    </div>
+
+    <div class="action-grid">
+      {% if a.running %}
+      <a href="/stop/{{ a.name }}" class="btn btn-danger btn-small"><i class="fa-solid fa-stop"></i> Stop</a>
+      <a href="#" onclick="restartApp('{{ a.name }}');return false;" class="btn btn-outline btn-small"><i class="fa-solid fa-rotate"></i> Restart</a>
+      {% else %}
+      <a href="#" onclick="runApp('{{ a.name }}');return false;" class="btn btn-primary btn-small"><i class="fa-solid fa-play"></i> Run</a>
+      <a href="#" onclick="validateApp('{{ a.name }}');return false;" class="btn btn-outline btn-small"><i class="fa-solid fa-check"></i> Validate</a>
+      {% endif %}
+      <a href="#" onclick="openLogs('{{ a.name }}');return false;" class="btn btn-outline btn-small"><i class="fa-solid fa-terminal"></i> Logs</a>
+    </div>
+    <div class="action-grid2">
+      <a href="#" onclick="openFiles('{{ a.name }}');return false;" class="btn btn-outline btn-small"><i class="fa-solid fa-folder-open"></i> Files</a>
+      <a href="/download/{{ a.name }}" class="btn btn-outline btn-small"><i class="fa-solid fa-download"></i> Download</a>
+    </div>
+    <div class="action-grid2">
+      <button class="btn btn-outline btn-small" onclick="getPublicLink('{{ a.name }}')"><i class="fa-solid fa-link"></i> Public Link</button>
+      <a href="#" onclick="confirmDelete('{{ a.name }}');return false;" class="btn btn-danger btn-small"><i class="fa-solid fa-trash"></i> Delete</a>
+    </div>
+  </div>
+  {% endfor %}
+  {% if not apps %}
+  <div class="empty-state"><i class="fa-solid fa-box-open" style="font-size:30px;"></i><p>No apps have been uploaded yet. Upload a ZIP file above.</p></div>
+  {% endif %}
+  <div class="filter-empty" id="filterEmpty"><i class="fa-solid fa-filter-circle-xmark"></i><p>No apps match your search or filter.</p></div>
+</div>
+
+<!-- LOG MODAL -->
+<div class="modal-overlay" id="logModal">
+  <div class="modal-box">
+    <span class="close-btn" onclick="closeModal('logModal')">&times;</span>
+    <h3 id="logTitle">Logs</h3>
+    <div id="logBox">Loading...</div>
+  </div>
+</div>
+
+<!-- VALIDATE MODAL -->
+<div class="modal-overlay" id="validateModal">
+  <div class="modal-box">
+    <span class="close-btn" onclick="closeModal('validateModal')">&times;</span>
+    <h3>Validation Result</h3>
+    <div id="validateBox">Checking...</div>
+  </div>
+</div>
+
+<!-- FILE MANAGER MODAL -->
+<div class="modal-overlay" id="fileModal">
+  <div class="modal-box">
+    <span class="close-btn" onclick="closeModal('fileModal')">&times;</span>
+    <h3 id="fileModalTitle">Files</h3>
+    <div id="fileListView" class="file-list"></div>
+    <div id="fileEditView" style="display:none;">
+      <p id="editingFileName" style="font-size:12px; color:#2563eb;"></p>
+      <textarea id="fileEditor"></textarea>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button class="btn btn-primary btn-small" onclick="saveFile()"><i class="fa-solid fa-save"></i> Save</button>
+        <button class="btn btn-danger btn-small" onclick="deleteFileFromEditor()"><i class="fa-solid fa-trash"></i> Delete</button>
+        <button class="btn btn-outline btn-small" onclick="backToFileList()"><i class="fa-solid fa-arrow-left"></i> Back</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentProject = null;
+let currentFile = null;
+
+function refreshDashboard() {
+  const button = document.querySelector('.dashboard-heading .btn');
+  if (button) { button.disabled = true; button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Refreshing'; }
+  window.location.reload();
+}
+
+function filterApps() {
+  const query = (document.getElementById('appSearch').value || '').trim().toLowerCase();
+  const status = document.getElementById('statusFilter').value;
+  const cards = Array.from(document.querySelectorAll('.app-card'));
+  let visible = 0;
+  cards.forEach(card => {
+    const matchesName = !query || card.dataset.name.includes(query);
+    const matchesStatus = status === 'all' || card.dataset.status === status;
+    const show = matchesName && matchesStatus;
+    card.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  const empty = document.getElementById('filterEmpty');
+  if (empty) empty.style.display = cards.length && visible === 0 ? 'block' : 'none';
+}
+
+const appSearch = document.getElementById('appSearch');
+const statusFilter = document.getElementById('statusFilter');
+if (appSearch) appSearch.addEventListener('input', filterApps);
+if (statusFilter) statusFilter.addEventListener('change', filterApps);
+window.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    if (appSearch) { appSearch.focus(); appSearch.select(); }
+  }
+});
+
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+// ---------------- UPLOAD ----------------
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  doUpload(file, false);
+});
+
+function doUpload(file, overwrite) {
+  const progressWrap = document.getElementById('progressWrap');
+  const progressBar = document.getElementById('progressBar');
+  const statusDiv = document.getElementById('deployStatus');
+  progressWrap.style.display = 'block';
+  progressBar.style.width = '0%';
+  statusDiv.textContent = 'Uploading...';
+
+  const formData = new FormData();
+  formData.append('file', file, file.name);
+  if (overwrite) formData.append('overwrite', 'true');
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/upload', true);
+  xhr.upload.onprogress = function(e) {
+    if (e.lengthComputable) {
+      const pct = Math.round((e.loaded / e.total) * 100);
+      progressBar.style.width = pct + '%';
+      statusDiv.textContent = 'Uploading... ' + pct + '%';
+    }
+  };
+  xhr.onload = function() {
+    progressWrap.style.display = 'none';
+    let res;
+    try { res = JSON.parse(xhr.responseText); } catch(e) { res = {ok:false, error:'The server response could not be understood.'}; }
+
+    if (res.needs_confirm) {
+      Swal.fire({
+        title: 'App already exists',
+        text: res.error,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Overwrite',
+        cancelButtonText: 'Cancel'
+      }).then((result) => {
+        if (result.isConfirmed) doUpload(file, true);
+      });
+      return;
+    }
+
+    if (!res.ok) {
+      statusDiv.textContent = '';
+      Swal.fire('Error', res.error || 'Upload failed.', 'error');
+      return;
+    }
+
+    if (res.warning) {
+      statusDiv.textContent = '';
+      Swal.fire('Upload completed', res.warning, 'warning').then(() => location.reload());
+      return;
+    }
+
+    statusDiv.textContent = 'Detected ' + (res.kind || 'runtime') + ' (' + (res.entry || 'entry point found') + '). Reloading...';
+    setTimeout(() => location.reload(), 700);
+  };
+  xhr.onerror = function() {
+    progressWrap.style.display = 'none';
+    statusDiv.textContent = '';
+    Swal.fire('Error', 'Network error. Please try again.', 'error');
+  };
+  xhr.send(formData);
+}
+
+// drag & drop
+const dz = document.getElementById('dropZone');
+['dragover','dragenter'].forEach(evt => dz.addEventListener(evt, e => { e.preventDefault(); }));
+dz.addEventListener('drop', e => {
+  e.preventDefault();
+  if (e.dataTransfer.files.length) doUpload(e.dataTransfer.files[0], false);
+});
+
+// ---------------- RUN / RESTART with pre-check ----------------
+function runApp(name) {
+  Swal.fire({ title: 'Starting...', text: name, didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+  fetch('/run/' + encodeURIComponent(name) + '?json=1').then(r => r.json()).then(res => {
+    if (res.ok) {
+      Swal.fire('Started!', res.device ? ('Device assigned: ' + res.device) : '', 'success').then(() => location.reload());
+    } else {
+      Swal.fire('Could not start', res.error || 'Unknown error', 'error');
+    }
+  }).catch(() => Swal.fire('Error', 'Network issue', 'error'));
+}
+
+function restartApp(name) {
+  Swal.fire({ title: 'Restarting...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+  fetch('/restart/' + encodeURIComponent(name) + '?json=1').then(r => r.json()).then(res => {
+    if (res.ok) { Swal.fire('Restarted!', '', 'success').then(() => location.reload()); }
+    else { Swal.fire('Failed', res.error || '', 'error'); }
+  });
+}
+
+function getPublicLink(name) {
+  fetch('/get_public_link/' + encodeURIComponent(name), { method: 'POST' })
+    .then(r => r.json()).then(res => {
+      if (res.ok) {
+        Swal.fire({
+          title: 'Public Link (no login required)',
+          html: '<input readonly style="width:100%;padding:8px;font-size:12px;" value="' + res.url + '" onclick="this.select()"><p style="font-size:11px;opacity:0.7;margin-top:8px;">Anyone with this link can start, stop, and view logs. Files cannot be edited.</p>',
+          confirmButtonText: 'Close'
+        });
+      } else {
+        Swal.fire('Error', res.error || 'Unable to create the link', 'error');
+      }
+    });
+}
+
+function confirmDelete(name) {
+  Swal.fire({
+    title: 'Are you sure you want to delete this?',
+    text: name + ' will be permanently deleted.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: 'Yes, delete it',
+    confirmButtonColor: '#ef4444'
+  }).then((result) => {
+    if (result.isConfirmed) window.location.href = '/delete/' + encodeURIComponent(name);
+  });
+}
+
+// ---------------- TOGGLES ----------------
+function toggleSetting(name, field, checkbox) {
+  fetch('/toggle_' + field + '/' + encodeURIComponent(name), { method: 'POST' })
+    .then(r => r.json()).then(res => {
+      if (!res.ok) { checkbox.checked = !checkbox.checked; Swal.fire('Error', 'The setting could not be saved', 'error'); }
+    }).catch(() => { checkbox.checked = !checkbox.checked; });
+}
+
+// ---------------- VALIDATE ----------------
+function validateApp(name) {
+  document.getElementById('validateModal').style.display = 'flex';
+  const box = document.getElementById('validateBox');
+  box.innerHTML = 'Checking code...';
+  fetch('/validate/' + encodeURIComponent(name)).then(r => r.json()).then(res => {
+    if (res.ok) {
+      box.innerHTML = '<div class="validate-box validate-ok"><i class="fa-solid fa-circle-check"></i> Everything looks good! Entry file: ' + (res.entry || '') + '</div>';
+    } else if (res.problems) {
+      let html = '<div class="validate-box validate-bad">';
+      res.problems.forEach(p => {
+        html += '<b>' + p.file + '</b>' + (p.line ? (' (Line ' + p.line + ')') : '') + '<br>' + escapeHtml(p.error || '') + '<hr style="opacity:0.2;">';
+      });
+      html += '</div>';
+      box.innerHTML = html;
+    } else {
+      box.innerHTML = '<div class="validate-box validate-bad">' + escapeHtml(res.error || 'Unknown issue') + '</div>';
+    }
+  }).catch(() => { box.innerHTML = '<div class="validate-box validate-bad">An error occurred while checking.</div>'; });
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+// ---------------- LOGS ----------------
+let logInterval = null;
+function openLogs(name) {
+  document.getElementById('logModal').style.display = 'flex';
+  document.getElementById('logTitle').textContent = 'Logs — ' + name;
+  fetchLogs(name);
+  if (logInterval) clearInterval(logInterval);
+  logInterval = setInterval(() => fetchLogs(name), 3000);
+}
+function fetchLogs(name) {
+  fetch('/get_log/' + encodeURIComponent(name)).then(r => r.json()).then(res => {
+    const box = document.getElementById('logBox');
+    box.textContent = res.log || '(No logs available yet)';
+    box.scrollTop = box.scrollHeight;
+  });
+}
+document.getElementById('logModal').addEventListener('click', function(e){
+  if (e.target === this) { clearInterval(logInterval); closeModal('logModal'); }
+});
+
+// ---------------- FILE MANAGER ----------------
+function openFiles(name) {
+  currentProject = name;
+  document.getElementById('fileModal').style.display = 'flex';
+  document.getElementById('fileModalTitle').textContent = 'Files — ' + name;
+  document.getElementById('fileListView').style.display = 'block';
+  document.getElementById('fileEditView').style.display = 'none';
+  loadFileList();
+}
+function loadFileList() {
+  const view = document.getElementById('fileListView');
+  view.innerHTML = 'Loading...';
+  fetch('/list_files/' + encodeURIComponent(currentProject)).then(r => r.json()).then(res => {
+    if (!res.files.length) { view.innerHTML = '<p style="font-size:12px;opacity:0.6;">No files found.</p>'; return; }
+    view.innerHTML = '';
+    res.files.forEach(f => {
+      const div = document.createElement('div');
+      div.className = 'file-item';
+      div.innerHTML = '<span>' + escapeHtml(f) + '</span><i class="fa-solid fa-pen"></i>';
+      div.onclick = () => openFileEditor(f);
+      view.appendChild(div);
+    });
+  });
+}
+function openFileEditor(filename) {
+  currentFile = filename;
+  fetch('/read_file', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({project: currentProject, filename: filename}) })
+    .then(r => r.json()).then(res => {
+      document.getElementById('fileListView').style.display = 'none';
+      document.getElementById('fileEditView').style.display = 'block';
+      document.getElementById('editingFileName').textContent = filename;
+      document.getElementById('fileEditor').value = res.content || '';
+    });
+}
+function backToFileList() {
+  document.getElementById('fileListView').style.display = 'block';
+  document.getElementById('fileEditView').style.display = 'none';
+  loadFileList();
+}
+function saveFile() {
+  const content = document.getElementById('fileEditor').value;
+  fetch('/save_file', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({project: currentProject, filename: currentFile, content: content}) })
+    .then(r => r.json()).then(res => {
+      if (res.status === 'success') Swal.fire({title:'Saved!', icon:'success', timer:1000, showConfirmButton:false});
+      else Swal.fire('Error', res.error || 'The file could not be saved', 'error');
+    });
+}
+function deleteFileFromEditor() {
+  Swal.fire({title:'Delete this file?', icon:'warning', showCancelButton:true, confirmButtonColor:'#ef4444'}).then(result => {
+    if (!result.isConfirmed) return;
+    fetch('/delete_file', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({project: currentProject, filename: currentFile}) })
+      .then(r => r.json()).then(res => { backToFileList(); });
+  });
+}
+document.getElementById('fileModal').addEventListener('click', function(e){
+  if (e.target === this) closeModal('fileModal');
+});
+
+// ---------------- AUTO REFRESH DASHBOARD ----------------
+setInterval(() => { location.reload(); }, 60000);
+</script>
+</body>
+</html>

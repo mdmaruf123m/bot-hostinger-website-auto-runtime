@@ -1,0 +1,14 @@
+.git
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+venvs/
+node_modules/
+uploads/
+logs/
+database.json
+*.tmp

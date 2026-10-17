@@ -1,0 +1,23 @@
+# Runtime detection and deployment notes
+
+This panel detects and launches **Python, Node.js, and PHP CLI bots** from uploaded ZIP archives. It supports a project inside one or more wrapper folders; detection walks the archive while skipping common dependency/cache directories.
+
+## Detection rules
+
+- **Python:** `main.py`, `bot.py`, `app.py`, `run.py`, or `start.py`; installs from `requirements.txt`, or installs the project from `pyproject.toml` / `setup.py` when there is no requirements file.
+- **Node.js:** `index.js`, `server.js`, `bot.js`, `app.js`, or `main.js`; installs dependencies from `package.json`. If `package.json` has a `main` file it is preferred. Otherwise an `npm start` script is used when present.
+- **PHP:** `main.php`, `bot.php`, `app.php`, `run.php`, `start.php`, `worker.php`, or `index.php`; installs Composer dependencies from `composer.json` when present, then starts PHP CLI.
+
+Where several runtimes are present in one folder, the matching manifest (`composer.json`, `package.json`, or a Python manifest) is used to choose the runtime. Keep one app/runtime per ZIP for predictable detection. ZIP contents may be at the archive root or under a wrapper folder.
+
+The dependency manager and executable must exist in the hosting image. The included `Dockerfile` installs Python, Node.js/npm, PHP CLI, and Composer for Railway or Render Docker deployments. The outer panel itself is still a Flask/Gunicorn service.
+
+## Storage and hosting
+
+The panel writes `uploads/`, `venvs/`, logs, and `database.json` under its application directory by default. Set `DATA_DIR=/data` and mount a persistent volume at `/data` in the provider dashboard to preserve them across redeploys/restarts. Without persistent storage, uploads, accounts, logs and runtime environments can be lost.
+
+## Important security limitation
+
+Uploaded programs execute as child processes in the **same container and operating-system user as the panel**. They are not isolated from panel credentials or other files in that container. Do not expose this service to untrusted users as a public multi-tenant host without adding per-app container/VM isolation, resource/network limits, and a secure process supervisor. Runtime detection is not a security sandbox.
+
+This runner is intended for long-running CLI bots/workers. A PHP website is not automatically published as its own public website: serving user web apps requires a separate port/proxy/domain routing design.

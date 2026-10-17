@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+venvs/
+
+# Environment
+.env
+
+# Runtime data (Railway Volume-এ থাকবে)
+uploads/
+logs/
+database.json
+*.tmp
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Node
+node_modules/
