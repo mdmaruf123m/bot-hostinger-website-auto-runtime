@@ -42,6 +42,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", os.urandom(32).hex())
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = True
 app.permanent_session_lifetime = timedelta(days=7)
 app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200MB hard ceiling (safety net, not a target)
 
@@ -1065,6 +1066,34 @@ def current_user_key():
 # ============================================================
 # ROUTES — DASHBOARD
 # ============================================================
+@app.route("/api/apps")
+def api_apps():
+    if not require_login():
+        return jsonify({"ok": False, "apps": []}), 401
+    user_name = current_user_key()
+    user_dir = safe_join(UPLOAD_FOLDER, user_name)
+    os.makedirs(user_dir, exist_ok=True)
+    db = load_db()
+    apps_list = []
+    for name in sorted(os.listdir(user_dir)):
+        if not os.path.isdir(os.path.join(user_dir, name)):
+            continue
+        process = processes.get((user_name, name))
+        running = bool(process and process.poll() is None)
+        settings = get_app_settings(db, user_name, name)
+        start_ms = db["start_times"].get(app_settings_key(user_name, name), 0)
+        elapsed = (time.time() - start_ms / 1000.0) if start_ms else 0
+        sleep_hours = get_config(db, "sleep_after_hours")
+        apps_list.append({
+            "name": name,
+            "running": running,
+            "auto_on": settings.get("auto_on", False),
+            "auto_restart": settings.get("auto_restart", False),
+            "device": settings.get("device_platform"),
+            "remaining_run_min": round(max(0, sleep_hours * 3600 - elapsed) / 60, 1) if running else 0,
+        })
+    return jsonify({"ok": True, "apps": apps_list})
+
 @app.route("/")
 def index():
     if not require_login():

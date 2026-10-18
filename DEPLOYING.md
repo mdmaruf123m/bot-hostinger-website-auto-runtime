@@ -27,6 +27,10 @@ The panel uses separate `/login` and `/register` pages backed by Firebase Email/
 
 The private `admin.html` is delivered separately and is not part of the repository. It manages Firestore profile documents only. Its password gate is client-side, and it cannot list or delete Firebase Authentication accounts. Direct Firestore operations depend on the project's existing Security Rules; this code does not open or weaken those rules. A `Blocked` profile is rejected at the next Firebase-to-panel session exchange.
 
+## Cloudflare Pages user interface with BotKeep backend
+
+The Pages-ready static UI and the one-time Git deployment/backend HTTPS setup are documented in [`CLOUDFLARE_PAGES_BN.md`](CLOUDFLARE_PAGES_BN.md). Pages serves the login, registration, and user dashboard; Flask and bot subprocesses continue running on BotKeep. Do not deploy the Flask runner as a Pages static site.
+
 ## Storage and hosting
 
 The panel writes `uploads/`, per-app dependency environments/caches, logs, and `database.json` under its application directory by default. Set `DATA_DIR=/data` and mount a persistent volume at `/data` in the provider dashboard to preserve them across redeploys/restarts. Without persistent storage, uploads, accounts, logs and runtime/package caches can be lost.
