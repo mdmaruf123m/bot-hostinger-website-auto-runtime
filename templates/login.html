@@ -50,7 +50,13 @@
     async function createPanelSession(user){
       const idToken = await user.getIdToken();
       const response = await fetch('/auth/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken})});
-      const result = await response.json();
+      const raw = await response.text();
+      let result;
+      try { result = JSON.parse(raw); }
+      catch (_) {
+        const detail = raw.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,180);
+        throw new Error(`BotKeep returned a non-JSON response (HTTP ${response.status}). ${detail || 'Check the backend deployment.'}`);
+      }
       if(!response.ok || !result.ok) throw new Error(result.error || 'Could not start your panel session.');
       location.replace(result.redirect || '/');
     }

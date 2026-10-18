@@ -29,12 +29,10 @@
   </main>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script>
     const firebaseConfig = {{ firebase_config|tojson }};
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
-    const db = firebase.firestore();
     const form = document.getElementById('registerForm');
     const button = document.getElementById('submit');
     const errorBox = document.getElementById('error');
@@ -48,7 +46,13 @@
     async function createPanelSession(user){
       const idToken = await user.getIdToken();
       const response = await fetch('/auth/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken})});
-      const result = await response.json();
+      const raw = await response.text();
+      let result;
+      try { result = JSON.parse(raw); }
+      catch (_) {
+        const detail = raw.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,180);
+        throw new Error(`BotKeep returned a non-JSON response (HTTP ${response.status}). ${detail || 'Check the backend deployment.'}`);
+      }
       if(!response.ok || !result.ok) throw new Error(result.error || 'Could not start your panel session.');
       location.replace(result.redirect || '/');
     }
@@ -61,9 +65,9 @@
       try{
         const credential=await auth.createUserWithEmailAndPassword(email,password);
         await credential.user.updateProfile({displayName:name});
-        await db.collection('users').doc(credential.user.uid).set({uid:credential.user.uid,name,email,status:'Active',createdAt:Date.now()});
         await createPanelSession(credential.user);
       }catch(error){
+        await auth.signOut().catch(()=>{});
         showError(messages[error.code] || error.message || 'Registration failed. Please try again.');
         button.disabled=false;button.textContent='Create account';
       }

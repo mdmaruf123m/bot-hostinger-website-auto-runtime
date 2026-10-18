@@ -977,6 +977,8 @@ def firebase_get_profile(uid, id_token):
         if exc.code == 404:
             return None
         raise FirebaseAuthError("Could not read the user's Firestore profile.") from exc
+    except (URLError, TimeoutError) as exc:
+        raise FirebaseAuthError("Could not connect to Firestore to read the user's profile.") from exc
     fields = doc.get("fields", {})
     return {key: value.get("stringValue", "") for key, value in fields.items()}
 
@@ -1046,6 +1048,9 @@ def firebase_session():
         return jsonify({"ok": True, "redirect": url_for("index")})
     except FirebaseAuthError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 401
+    except Exception:
+        app.logger.exception("Unexpected error during Firebase session exchange")
+        return jsonify({"ok": False, "error": "The sign-in succeeded, but the panel could not finish syncing your Firebase profile. Check BotKeep logs and Firestore access."}), 500
 
 
 @app.route("/logout")
