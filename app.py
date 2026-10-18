@@ -23,6 +23,7 @@ load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
 from flask import Flask, render_template, render_template_string, request, redirect, url_for, session, jsonify, send_file
 from shared_dependencies import prepare_python, prepare_node, prepare_php
+from runtime_bootstrap import ensure_node_runtime, ensure_php_runtime
 
 # Firebase Web configuration is public client configuration, not a service-account key.
 FIREBASE_WEB_CONFIG = {
@@ -300,7 +301,10 @@ def validate_python_file(path):
 def validate_js_file(path):
     node_bin = shutil.which("node")
     if not node_bin:
-        return {"ok": True, "skipped": True, "note": "Node not available on this server to validate JS"}
+        try:
+            node_bin, _ = ensure_node_runtime(lambda _message: None)
+        except Exception as exc:
+            return {"ok": True, "skipped": True, "note": f"Node.js unavailable for validation: {exc}"}
     try:
         result = subprocess.run([node_bin, "--check", path], capture_output=True, text=True, timeout=15)
         if result.returncode == 0:
@@ -367,7 +371,10 @@ def find_entry_file(extract_dir):
 def validate_php_file(path):
     php_bin = shutil.which("php")
     if not php_bin:
-        return {"ok": True, "skipped": True, "note": "PHP CLI is not installed on this host"}
+        try:
+            php_bin = ensure_php_runtime(lambda _message: None)
+        except Exception as exc:
+            return {"ok": True, "skipped": True, "note": f"PHP CLI unavailable for validation: {exc}"}
     try:
         result = subprocess.run([php_bin, "-l", path], capture_output=True, text=True, timeout=15)
         return {"ok": result.returncode == 0, "error": result.stderr.strip() or result.stdout.strip()}
@@ -688,13 +695,20 @@ def start_app_process(user, name, db):
         cmd = [python_bin, entry]
     elif kind == "node":
         node_bin = shutil.which("node")
-        if not node_bin:
-            return {"ok": False, "error": "Node.js is not installed in the hosting runtime"}
+        npm_bin = shutil.which("npm")
+        if not node_bin or not npm_bin:
+            try:
+                node_bin, npm_bin = ensure_node_runtime(log_cb)
+                os.environ["PATH"] = os.path.dirname(node_bin) + os.pathsep + os.environ.get("PATH", "")
+            except Exception as e:
+                message = f"Could not install portable Node.js on this host: {e}. The host must allow outbound HTTPS, provide writable persistent storage, and support Linux {__import__('platform').machine()}."
+                append_log(log_path, message + "\n")
+                return {"ok": False, "error": message}
         runtime_env, install_res = prepare_node(project_root, app_dependency_cache, log_cb)
         if not install_res.get("ok"):
             return {"ok": False, "error": install_res.get("error", "Node.js dependency installation failed")}
         if entry == "__npm_start__":
-            npm_bin = shutil.which("npm")
+            npm_bin = shutil.which("npm") or locals().get("npm_bin")
             if not npm_bin:
                 return {"ok": False, "error": "npm is not installed in the hosting runtime"}
             cmd = [npm_bin, "start"]
@@ -703,7 +717,12 @@ def start_app_process(user, name, db):
     else:
         php_bin = shutil.which("php")
         if not php_bin:
-            return {"ok": False, "error": "PHP CLI is not installed in the hosting runtime; add it to the host image"}
+            try:
+                php_bin = ensure_php_runtime(log_cb)
+            except Exception as e:
+                message = f"Could not install portable PHP CLI on this host: {e}. The host must allow outbound HTTPS, provide writable persistent storage, and support Linux {__import__('platform').machine()}."
+                append_log(log_path, message + "\n")
+                return {"ok": False, "error": message}
         runtime_env, install_res = prepare_php(project_root, app_dependency_cache, log_cb)
         if not install_res.get("ok"):
             return {"ok": False, "error": install_res.get("error", "PHP dependency installation failed")}

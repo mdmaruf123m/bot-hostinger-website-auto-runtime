@@ -1,3 +1,9 @@
+## Portable Node.js and PHP runtimes
+
+BotKeep container-এ Node.js/npm বা PHP CLI আগে থেকে না থাকলে, project detected হলে panel প্রথম Run-এর সময় official Node.js checksum manifest দিয়ে Node archive যাচাই করে এবং PHP CLI-এর portable binary download করে writable `runtime_bins/` cache-এ রাখে। Composer packages থাকলে Composer PHAR-ও তার published SHA-256 দিয়ে যাচাই করে download হয়। এর জন্য root/sudo লাগে না। প্রথম Run-এ internet থেকে runtime নামানোর কারণে সময় বেশি লাগতে পারে।
+
+এটি কাজ করার জন্য BotKeep container-এ outbound HTTPS, writable storage, `tar`/`xz` archive support, এবং Linux x86_64 বা ARM64 architecture থাকতে হবে। Host network download block করলে, disk quota শেষ হলে, অথবা runtime architecture অন্য হলে BotKeep administrator-এর কাছ থেকে runtime-enabled image চাইতে হবে। PHP bot-এ দরকারি PHP extension portable build-এ থাকতে হবে; custom/unlisted extension থাকলে image-based setup প্রয়োজন।
+
 # Runtime detection and deployment notes
 
 This panel detects and launches **Python, Node.js, and PHP CLI bots** from uploaded ZIP archives. It supports a project inside one or more wrapper folders; detection walks the archive while skipping common dependency/cache directories.

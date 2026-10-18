@@ -312,6 +312,16 @@ def _link_cache(cache_dir: str, project_root: str, name: str, log) -> None:
 
 
 def prepare_node(project_root: str, cache_root: str, log) -> tuple[dict, dict]:
+    from runtime_bootstrap import ensure_node_runtime
+
+    node = shutil.which("node")
+    npm = shutil.which("npm")
+    if not node or not npm:
+        try:
+            node, npm = ensure_node_runtime(log)
+            os.environ["PATH"] = os.path.dirname(node) + os.pathsep + os.environ.get("PATH", "")
+        except Exception as exc:
+            return {}, {"ok": False, "error": f"Could not prepare portable Node.js/npm: {exc}"}
     inferred = infer_node_packages(project_root, log)
     package, deps, extra, error = _node_deps(project_root, inferred)
     if error:
@@ -336,7 +346,7 @@ def prepare_node(project_root: str, cache_root: str, log) -> tuple[dict, dict]:
         except Exception as exc:
             return {}, {"ok": False, "error": str(exc)}
     identity = {"dependencies": deps, "lock_sha256": lock_hash,
-                "node_version": _version([shutil.which("node") or "node", "--version"])}
+                "node_version": _version([node, "--version"])}
     path = _bundle_dir(cache_root, "node", _digest(identity))
     lock = _lock_for("node:" + path)
     with lock:
@@ -354,9 +364,6 @@ def prepare_node(project_root: str, cache_root: str, log) -> tuple[dict, dict]:
             Path(path, "package.json").write_text(json.dumps(package_data, indent=2), encoding="utf-8")
             if lock_path and lock_path[0] and not extra:
                 shutil.copy2(lock_path[0], os.path.join(path, os.path.basename(lock_path[0])))
-            npm = shutil.which("npm")
-            if not npm:
-                return {}, {"ok": False, "error": "npm not found"}
             command = [npm, "install", "--prefix", path, "--no-audit", "--no-fund"]
             npm_env = os.environ.copy()
             npm_env["npm_config_cache"] = os.path.join(cache_root, "npm-downloads")
@@ -401,12 +408,15 @@ def infer_php_packages(project_root: str, log=None) -> list[str]:
 
 
 def prepare_php(project_root: str, cache_root: str, log) -> tuple[dict, dict]:
+    from runtime_bootstrap import ensure_composer, ensure_php_runtime
+
     composer = shutil.which("composer")
     php = shutil.which("php")
     if not php:
-        return {}, {"ok": False, "error": "PHP CLI is not installed in the hosting runtime"}
-    if not composer:
-        return {}, {"ok": False, "error": "Composer is not installed in the hosting runtime"}
+        try:
+            php = ensure_php_runtime(log)
+        except Exception as exc:
+            return {}, {"ok": False, "error": f"Could not prepare portable PHP CLI: {exc}"}
     composer_path = os.path.join(project_root, "composer.json")
     lock_path = os.path.join(project_root, "composer.lock")
     data = {}
@@ -425,6 +435,11 @@ def prepare_php(project_root: str, cache_root: str, log) -> tuple[dict, dict]:
         if not os.path.isfile(composer_path):
             _say(log, "No external PHP namespace/package detected; no Composer install needed.")
         return {}, {"ok": True, "cached": True, "skipped": True, "packages": 0}
+    if not composer:
+        try:
+            composer = ensure_composer(php, log)
+        except Exception as exc:
+            return {}, {"ok": False, "error": f"Could not prepare Composer: {exc}"}
 
     # Shared vendor trees are safe only for ordinary dependency manifests. Preserve
     # project-specific autoload/repository/scripts behavior via a local install.
@@ -437,7 +452,7 @@ def prepare_php(project_root: str, cache_root: str, log) -> tuple[dict, dict]:
             data["require"] = dict(declared)
             data["require"].update({pkg: "*" for pkg in extra})
             Path(composer_path).write_text(json.dumps(data, indent=2), encoding="utf-8")
-        result = subprocess.run([composer, "install", "--no-interaction", "--no-dev", "--prefer-dist"], cwd=project_root, env=env, capture_output=True, text=True, timeout=600)
+            result = subprocess.run([composer, "install", "--no-interaction", "--no-dev", "--prefer-dist"], cwd=project_root, env=env, capture_output=True, text=True, timeout=600)
         _say(log, result.stdout[-4000:])
         if result.returncode:
             _say(log, result.stderr[-3000:])

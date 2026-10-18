@@ -1,3 +1,9 @@
+## Portable Node.js and PHP runtimes
+
+BotKeep container-এ Node.js/npm বা PHP CLI আগে থেকে না থাকলে, project detected হলে panel প্রথম Run-এর সময় official Node.js checksum manifest দিয়ে Node archive যাচাই করে এবং PHP CLI-এর portable binary download করে writable `runtime_bins/` cache-এ রাখে। Composer packages থাকলে Composer PHAR-ও তার published SHA-256 দিয়ে যাচাই করে download হয়। এর জন্য root/sudo লাগে না। প্রথম Run-এ internet থেকে runtime নামানোর কারণে সময় বেশি লাগতে পারে।
+
+এটি কাজ করার জন্য BotKeep container-এ outbound HTTPS, writable storage, `tar`/`xz` archive support, এবং Linux x86_64 বা ARM64 architecture থাকতে হবে। Host network download block করলে, disk quota শেষ হলে, অথবা runtime architecture অন্য হলে BotKeep administrator-এর কাছ থেকে runtime-enabled image চাইতে হবে। PHP bot-এ দরকারি PHP extension portable build-এ থাকতে হবে; custom/unlisted extension থাকলে image-based setup প্রয়োজন।
+
 # Cloudflare Pages দিয়ে User Panel UI deploy (বাংলা)
 
 এই repository-তে এখন Cloudflare Pages-এর জন্য static frontend আছে: আলাদা Login, Register, dashboard এবং `/backend/*` request-এর Pages Function proxy। GitHub-এ `main` branch push করলে Pages নিজে থেকে নতুন UI deploy করতে পারবে। Python/Node.js/PHP bot, subprocess, dependency install, logs ও uploaded files **BotKeep backend-এই থাকবে**—Cloudflare Pages-এ bot চালানো হবে না।
