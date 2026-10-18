@@ -8,14 +8,12 @@
 2. Repository root/project directory-তে `requirements.txt` আছে নিশ্চিত করুন।
 3. Start command দিন: `python botkeep_start.py`। Launcher BotKeep-এর `SERVER_PORT` ব্যবহার করে, না থাকলে `PORT`, তারপর `8080`।
 4. Python version হিসেবে BotKeep-এ বর্তমানে offered version থেকে Python 3.11 বা 3.12 বেছে নিন।
-5. Environment/Secrets-এ এই values দিন। App startup-এর আগে `python-dotenv` দিয়ে BotKeep-এর project-root `.env` ফাইলও load করে:
-   - `ALLOW_SIGNUP=false`
-   - `ADMIN_PASS` = আপনার নিজের শক্তিশালী, অনন্য admin password
-   - `SECRET_KEY` = দীর্ঘ, random secret
-   - `DATA_DIR` = BotKeep-এর dashboard-এ যে writable persistent directory/volume path দেখায়, সেই exact path
-6. Deploy করুন। Console-এ `venv`, `pip`, permission, package install বা storage error আছে কি না দেখুন। Assigned app URL-এ `/admin` খুলে admin login দিয়ে যাচাই করুন।
+5. Environment/Secrets-এ `SECRET_KEY` হিসেবে দীর্ঘ random value দিন। `DATA_DIR` দিলে BotKeep dashboard-এ দেখানো writable persistent path-টাই ব্যবহার করুন।
+6. Deploy করুন। Console-এ `venv`, `pip`, permission, package install বা storage error আছে কি না দেখুন। Panel খুলে `/register` থেকে Firebase account তৈরি করুন, তারপর `/login` দিয়ে প্রবেশ করুন।
 
-**গুরুত্বপূর্ণ:** BotKeep-এর persistent storage path dashboard-এ আলাদা করে দেখানো থাকলে সেটিই `DATA_DIR` হিসেবে ব্যবহার করুন। Path নিশ্চিত না হলে সেটি আন্দাজ করে দেবেন না। Persistent writable storage না থাকলে account database, uploaded bot files, logs ও dependency caches restart/redeploy-এর পরে হারাতে পারে, অথবা directory write permission না থাকলে app শুরুই নাও হতে পারে।
+Firebase Email/Password Authentication এবং Firestore এই repo-তে সংযুক্ত আছে। Firebase Web configuration `app.py`-তে আছে; এটি public client configuration। Firestore-এর access Firebase Security Rules নিয়ন্ত্রণ করে। Register করা account-এর profile `users/{uid}`-এ রাখা হয়।
+
+**গুরুত্বপূর্ণ:** BotKeep-এর persistent storage path dashboard-এ আলাদা করে দেখানো থাকলে সেটিই `DATA_DIR` হিসেবে ব্যবহার করুন। Path নিশ্চিত না হলে সেটি আন্দাজ করে দেবেন না। Persistent writable storage না থাকলে uploaded bot files, logs ও dependency caches restart/redeploy-এর পরে হারাতে পারে, অথবা directory write permission না থাকলে app শুরুই নাও হতে পারে। Firebase user credentials local `database.json`-এ রাখা হয় না।
 
 ## Dependency auto-install পরীক্ষা
 
@@ -31,4 +29,6 @@ BotKeep-এর Python নির্দেশনা dependencies manifest ও expl
 
 ## নিরাপত্তা ও data
 
-`ALLOW_SIGNUP=false` রাখুন এবং admin password/secret source code, ZIP বা public repo-তে লিখবেন না। এই panel uploaded code-কে একই container ও OS user-এ child process হিসেবে চালায়; এটি untrusted code-এর জন্য নিরাপদ sandbox নয়। শুধু নিজের বা বিশ্বস্ত bot code দিয়ে পরীক্ষা করুন। Test-এর আগে প্রয়োজনীয় data-এর আলাদা copy রাখুন।
+`admin.html` private standalone file; এটি GitHub repository-তে নেই। এতে শুধু Firestore user profile দেখানো/Block/Unblock/Delete profile করা যায়। Firebase Authentication account-কে সম্পূর্ণ delete বা disable করা যায় না; তার জন্য privileged server-side function লাগে। Admin HTML-এর client-side password gate security boundary নয়, এবং Firestore Security Rules আলাদাভাবে database access নিয়ন্ত্রণ করে।
+
+এই panel uploaded code-কে একই container ও OS user-এ child process হিসেবে চালায়; এটি untrusted code-এর জন্য নিরাপদ sandbox নয়। শুধু নিজের বা বিশ্বস্ত bot code দিয়ে পরীক্ষা করুন। Test-এর আগে প্রয়োজনীয় data-এর আলাদা copy রাখুন।

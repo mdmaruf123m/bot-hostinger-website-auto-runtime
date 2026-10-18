@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#050217">
+  <title>Log in · Bot Hosting Panel</title>
+  <style>
+    :root{color-scheme:dark;--bg:#050217;--card:#100d2b;--line:#2a2458;--primary:#716aff;--text:#f4f1ff;--muted:#aaa4cb;--danger:#ff7188}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:22px;background:radial-gradient(circle at 14% 3%,rgba(13,7,130,.85),transparent 42%),linear-gradient(145deg,#0D0782 0%,#050217 68%);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--text)}
+    .card{width:min(100%,420px);padding:30px;border:1px solid var(--line);border-radius:24px;background:rgba(16,13,43,.94);box-shadow:0 24px 70px #0008}
+    .mark{width:54px;height:54px;display:grid;place-items:center;border-radius:17px;background:linear-gradient(145deg,#716aff,#0D0782);font-size:23px;font-weight:900;box-shadow:0 12px 28px #463be055}
+    h1{margin:18px 0 5px;font-size:25px;letter-spacing:-.4px}p{margin:0;color:var(--muted);font-size:14px;line-height:1.6}
+    form{display:grid;gap:14px;margin-top:24px}label{display:grid;gap:7px;color:#d6d2f1;font-size:13px;font-weight:700}input{width:100%;height:48px;border:1px solid #39336c;border-radius:12px;background:#08061b;color:var(--text);padding:0 14px;font-size:15px;outline:none}input:focus{border-color:var(--primary);box-shadow:0 0 0 3px #716aff26}
+    button{height:48px;border:0;border-radius:12px;background:linear-gradient(135deg,#0D0782,#463be0);color:#fff;font-size:15px;font-weight:800;cursor:pointer}button:disabled{opacity:.65;cursor:wait}.error{display:none;padding:11px 13px;border:1px solid #9f3c56;border-radius:11px;background:#3a1224;color:#ffd7df;font-size:13px;line-height:1.5}.foot{margin-top:20px;text-align:center;font-size:13px}.foot a{color:#aaa4ff;font-weight:800;text-decoration:none}.foot a:hover{text-decoration:underline}.hint{margin-top:16px;font-size:11px;color:#837da7;text-align:center}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="mark" aria-hidden="true">B</div>
+    <h1>Log in</h1>
+    <p>Sign in with your Firebase account to manage your hosted bots.</p>
+    <form id="loginForm">
+      <label>Email<input id="email" type="email" autocomplete="email" required maxlength="254" placeholder="you@example.com"></label>
+      <label>Password<input id="password" type="password" autocomplete="current-password" required minlength="6" placeholder="Your password"></label>
+      <div id="error" class="error" role="alert"></div>
+      <button id="submit" type="submit">Log in</button>
+    </form>
+    <div class="foot">New here? <a href="/register">Create an account</a></div>
+    <div class="hint">Your password is handled by Firebase Authentication.</div>
+  </main>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script>
+    const firebaseConfig = {{ firebase_config|tojson }};
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const form = document.getElementById('loginForm');
+    const button = document.getElementById('submit');
+    const errorBox = document.getElementById('error');
+    const messages = {
+      'auth/invalid-email':'Enter a valid email address.',
+      'auth/user-disabled':'This account is disabled.',
+      'auth/user-not-found':'No account was found for this email.',
+      'auth/wrong-password':'The email or password is incorrect.',
+      'auth/invalid-credential':'The email or password is incorrect.',
+      'auth/too-many-requests':'Too many attempts. Wait a little and try again.'
+    };
+    function showError(message){errorBox.textContent=message;errorBox.style.display='block'}
+    async function createPanelSession(user){
+      const idToken = await user.getIdToken();
+      const response = await fetch('/auth/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken})});
+      const result = await response.json();
+      if(!response.ok || !result.ok) throw new Error(result.error || 'Could not start your panel session.');
+      location.replace(result.redirect || '/');
+    }
+    auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(()=>{});
+    if(new URLSearchParams(location.search).has('logged_out')) auth.signOut().catch(()=>{});
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();errorBox.style.display='none';button.disabled=true;button.textContent='Signing in…';
+      try{
+        const credential=await auth.signInWithEmailAndPassword(document.getElementById('email').value.trim(),document.getElementById('password').value);
+        await createPanelSession(credential.user);
+      }catch(error){
+        await auth.signOut().catch(()=>{});
+        showError(messages[error.code] || error.message || 'Login failed. Please try again.');
+        button.disabled=false;button.textContent='Log in';
+      }
+    });
+  </script>
+</body>
+</html>

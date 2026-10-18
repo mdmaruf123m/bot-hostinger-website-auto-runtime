@@ -11,16 +11,29 @@ import signal
 import threading
 import py_compile
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict, deque
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote
 
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
 from flask import Flask, render_template, render_template_string, request, redirect, url_for, session, jsonify, send_file
-from werkzeug.security import generate_password_hash, check_password_hash
 from shared_dependencies import prepare_python, prepare_node, prepare_php
+
+# Firebase Web configuration is public client configuration, not a service-account key.
+FIREBASE_WEB_CONFIG = {
+    "apiKey": "AIzaSyDyfJQlCeLCUf09DSJxwYKoIEMfJ0-AOMY",
+    "authDomain": "email-b10d2.firebaseapp.com",
+    "databaseURL": "https://email-b10d2-default-rtdb.firebaseio.com",
+    "projectId": "email-b10d2",
+    "storageBucket": "email-b10d2.firebasestorage.app",
+    "messagingSenderId": "244667224878",
+    "appId": "1:244667224878:web:76076f744928ab505ce0bf",
+}
 
 # ============================================================
 # APP SETUP
@@ -29,6 +42,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", os.urandom(32).hex())
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.permanent_session_lifetime = timedelta(days=7)
 app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # 200MB hard ceiling (safety net, not a target)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -44,9 +58,6 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(VENV_FOLDER, exist_ok=True)
 os.makedirs(LOG_FOLDER, exist_ok=True)
 
-ADMIN_PASS_ENV = os.environ.get("ADMIN_PASS", "")
-ALLOW_SIGNUP = os.environ.get("ALLOW_SIGNUP", "true").strip().lower() in {"1", "true", "yes", "on"}
-ADMIN_INTERNAL_ID = "__admin__"   # internal folder/key used for admin's own unlimited apps
 
 ENTRY_FILES_PY = ["main.py", "bot.py", "app.py", "run.py", "start.py"]
 ENTRY_FILES_JS = ["index.js", "server.js", "bot.js", "app.js", "main.js"]
@@ -59,7 +70,6 @@ SKIP_PROJECT_DIRS = {"venv", ".venv", "node_modules", "vendor", "__pycache__", "
 processes = {}          # (user, app_name) -> subprocess.Popen
 proc_meta = {}          # (user, app_name) -> {"device": str, "started": ts, "restarts": int}
 request_windows = defaultdict(lambda: deque())   # (user, app_name) -> deque of timestamps (outbound activity log, self-reported)
-login_attempts = defaultdict(lambda: {"count": 0, "locked_until": 0})  # username -> attempt tracking
 
 STATE_LOCK = threading.Lock()
 
@@ -68,14 +78,11 @@ STATE_LOCK = threading.Lock()
 # ============================================================
 def default_db():
     return {
-        "users": {},               # email -> {"pw_hash":..., "vip": False, "created": ts}
-        "admin_device_tokens": {}, # token -> True  (long-lived cookie tokens for admin device trust)
         "start_times": {},        # "user_app" -> epoch ms
-        "app_settings": {},       # "user_app" -> {auto_on, auto_restart, sleep_until, req_hash, device, unlimited, public_token}
+        "app_settings": {},       # "user_app" -> {auto_on, auto_restart, sleep_until, req_hash, device, public_token}
         "public_tokens": {},      # token -> "user_app"  (reverse lookup for public share links)
         "config": {
             "max_concurrent_per_user": 3,
-            "max_concurrent_vip": 10,
             "max_concurrent_global": 25,
             "sleep_after_hours": 4,
             "auto_wake_after_minutes": 20,
@@ -106,19 +113,15 @@ def load_db():
             if k not in data.get("config", {}):
                 data["config"][k] = v
 
-        # migrate legacy (username-based, plaintext or hashed) users to the
-        # new email-based structure. Old entries can't have a real email, so
-        # they're kept under their old key but upgraded to dict form.
-        migrated_users = {}
-        for uname, val in data.get("users", {}).items():
-            if isinstance(val, dict):
-                migrated_users[uname] = val
-            else:
-                pw = val
-                if not (isinstance(pw, str) and (pw.startswith("pbkdf2:") or pw.startswith("scrypt:"))):
-                    pw = generate_password_hash(pw)
-                migrated_users[uname] = {"pw_hash": pw, "vip": False, "created": int(time.time() * 1000)}
-        data["users"] = migrated_users
+        # Authentication now lives in Firebase. Remove deprecated local password hashes
+        # and trusted-admin tokens from the JSON state on its next read.
+        removed_legacy_auth = False
+        for obsolete_key in ("users", "admin_device_tokens"):
+            if obsolete_key in data:
+                data.pop(obsolete_key, None)
+                removed_legacy_auth = True
+        if removed_legacy_auth:
+            _write_db(data)
         return data
 
 def _write_db(data):
@@ -135,9 +138,6 @@ def get_config(db, key):
     return db.get("config", {}).get(key, default_db()["config"].get(key))
 
 def get_user_concurrency_limit(db, email):
-    user_rec = db.get("users", {}).get(email, {})
-    if user_rec.get("vip"):
-        return get_config(db, "max_concurrent_vip")
     return get_config(db, "max_concurrent_per_user")
 
 # ============================================================
@@ -162,20 +162,6 @@ def safe_join(base, *parts):
     if not (target == base or target.startswith(base + os.sep)):
         raise ValueError("Path traversal blocked")
     return target
-
-def is_locked_out(username):
-    rec = login_attempts[username]
-    return time.time() < rec["locked_until"]
-
-def register_failed_login(username):
-    rec = login_attempts[username]
-    rec["count"] += 1
-    if rec["count"] >= 5:
-        rec["locked_until"] = time.time() + 60
-        rec["count"] = 0
-
-def reset_login_attempts(username):
-    login_attempts[username] = {"count": 0, "locked_until": 0}
 
 EMAIL_RE = re.compile(r"^[A-Za-z0-9_.+\-]+@[A-Za-z0-9\-]+\.[A-Za-z0-9\-.]+$")
 
@@ -608,7 +594,6 @@ def get_app_settings(db, user, name):
     settings.setdefault("device_ua", None)
     settings.setdefault("device_platform", None)
     settings.setdefault("manual_stop", False)
-    settings.setdefault("unlimited", False)   # True for admin apps -> skip 4h auto-sleep
     settings.setdefault("public_token", None) # secret token for the no-login share link
     return settings
 
@@ -680,12 +665,10 @@ def start_app_process(user, name, db):
     settings = get_app_settings(db, user, name)
 
     # concurrency guards (soft, configurable — not meant to block normal usage)
-    # admin's own apps are unlimited/unmanaged — only the server-wide global cap still applies
     max_global = get_config(db, "max_concurrent_global")
-    if user != ADMIN_INTERNAL_ID:
-        max_user = get_user_concurrency_limit(db, user)
-        if count_running_for_user(user) >= max_user:
-            return {"ok": False, "error": f"You can run a maximum of {max_user} apps at once. Stop one app and try again."}
+    max_user = get_user_concurrency_limit(db, user)
+    if count_running_for_user(user) >= max_user:
+        return {"ok": False, "error": f"You can run a maximum of {max_user} apps at once. Stop one app and try again."}
     if count_running_global() >= max_global:
         return {"ok": False, "error": "The server is currently at maximum capacity. Try again later."}
 
@@ -811,7 +794,7 @@ def scheduler_loop():
                 p = processes.get(key)
                 is_running = bool(p and p.poll() is None)
 
-                if is_running and not settings.get("unlimited") and (now - started_s) >= sleep_hours * 3600:
+                if is_running and (now - started_s) >= sleep_hours * 3600:
                     _, _, log_path = app_dirs(user, name)
                     append_log(log_path, f"[{datetime.now()}] Auto-sleep: {sleep_hours}h reached, stopping.\n")
                     stop_app_process(user, name, db, manual=False)
@@ -879,302 +862,6 @@ def ensure_scheduler():
 
 # ============================================================
 # LOGIN PAGE
-# ============================================================
-LOGIN_HTML = '''
-<!DOCTYPE html>
-<html>
-<head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login | MY HOST</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root { --bg: #f3faf5; --primary: #159957; --sec: #0b713d; --surface: #ffffff; --muted: #6c8275; --line: #dcebe1; }
-        body { background: radial-gradient(circle at 15% 0%, #e1f5e8 0, transparent 35%), var(--bg); color: #183326; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 18px; }
-        .login-card { position: relative; z-index: 10; background: var(--surface); padding: 40px 30px; border-radius: 25px; width: 340px; max-width: 90vw; text-align: center; border: 1px solid var(--line); box-shadow: 0 25px 45px rgba(22,83,46,.12); }
-        .lock-container { width: 80px; height: 80px; background: #e8f8ed; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; border: 2px solid #73c795; }
-        .lock-icon { font-size: 35px; color: var(--primary); }
-        h2 { font-size: 20px; margin-bottom: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--sec); }
-        .sub { font-size: 11px; color: var(--muted); margin-bottom: 15px; }
-        .err { background: #fff0f1; border: 1px solid #efabb2; color: #a62e3b; padding: 10px; border-radius: 10px; font-size: 13px; margin-bottom: 10px; }
-        input, select { width: 100%; padding: 14px; margin: 8px 0; border-radius: 12px; border: 1px solid var(--line); background: #f8fcf9; color: #183326; outline: none; font-size: 14px; box-sizing: border-box; }
-        input:focus, select:focus { border-color: #76c992; box-shadow: 0 0 0 3px #dff3e5; }
-        button { width: 100%; padding: 15px; border-radius: 12px; border: none; background: linear-gradient(135deg, var(--sec), var(--primary)); color: #fff; font-weight: bold; font-size: 15px; cursor: pointer; margin-top: 10px; text-transform: uppercase; letter-spacing: 2px; }
-        :root { --bg:#050217; --primary:#0D0782; --sec:#11104f; --surface:#100d2b; --muted:#aaa4cb; --line:#2a2458; --text:#f4f1ff; --glow:#716aff; }
-        body { background:radial-gradient(circle at 15% 0%, rgba(13,7,130,.78) 0, transparent 42%), linear-gradient(145deg,#0D0782 0%,#050217 68%); background-attachment:fixed; color:var(--text); }
-        .login-card { background:rgba(16,13,43,.94); border-color:rgba(165,157,255,.2); box-shadow:0 25px 60px rgba(0,0,0,.42); backdrop-filter:blur(14px); }
-        .lock-container { background:rgba(13,7,130,.28); border-color:#5148c8; }
-        .lock-icon { color:#aaa5ff; }
-        h2 { color:#d5d1ff; }
-        .sub { color:var(--muted); }
-        input, select { background:#08061b; color:var(--text); border-color:#39336c; }
-        input:focus, select:focus { border-color:var(--glow); box-shadow:0 0 0 3px rgba(113,106,255,.2); }
-        button { background:linear-gradient(135deg,#0D0782,#463be0); box-shadow:0 8px 22px rgba(52,43,200,.25); }
-    </style>
-</head>
-<body>
-    <div class="login-card">
-        <div class="lock-container"><i class="fa-solid fa-user-shield lock-icon"></i></div>
-        <h2>MY HOST</h2>
-        <div class="sub">Log in with your email or create a new account instantly</div>
-        {% if error %}<div class="err">{{ error }}</div>{% endif %}
-        <form method="post" action="/login">
-            <input type="email" name="email" placeholder="Email address" required maxlength="120">
-            <input type="password" name="password" placeholder="Password" required maxlength="100" minlength="4">
-            <button type="submit">Login / Register</button>
-        </form>
-    </div>
-</body>
-</html>
-'''
-
-ADMIN_LOGIN_HTML = '''
-<!DOCTYPE html>
-<html>
-<head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin | MY HOST</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root { --bg: #f3faf5; --primary: #159957; --sec: #0b713d; --surface: #ffffff; --muted: #6c8275; --line: #dcebe1; }
-        body { background: radial-gradient(circle at 85% 0%, #e1f5e8 0, transparent 35%), var(--bg); color: #183326; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 18px; }
-        .login-card { background: var(--surface); padding: 40px 30px; border-radius: 25px; width: 320px; max-width: 90vw; text-align: center; border: 1px solid var(--line); box-shadow: 0 25px 45px rgba(22,83,46,.12); }
-        .lock-container { width: 80px; height: 80px; background: #e8f8ed; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; border: 2px solid #73c795; }
-        .lock-icon { font-size: 35px; color: var(--primary); }
-        h2 { font-size: 18px; letter-spacing: 3px; text-transform: uppercase; color: var(--sec); }
-        .err { background: #fff0f1; border: 1px solid #efabb2; color: #a62e3b; padding: 10px; border-radius: 10px; font-size: 13px; margin-bottom: 10px; }
-        input { width: 100%; padding: 14px; margin: 8px 0; border-radius: 12px; border: 1px solid var(--line); background: #f8fcf9; color: #183326; outline: none; font-size: 14px; box-sizing: border-box; text-align: center; letter-spacing: 4px; }
-        input:focus { border-color: #76c992; box-shadow: 0 0 0 3px #dff3e5; }
-        button { width: 100%; padding: 15px; border-radius: 12px; border: none; background: linear-gradient(135deg, var(--sec), var(--primary)); color: #fff; font-weight: bold; font-size: 15px; cursor: pointer; margin-top: 10px; text-transform: uppercase; letter-spacing: 2px; }
-        :root { --bg:#050217; --primary:#0D0782; --sec:#11104f; --surface:#100d2b; --muted:#aaa4cb; --line:#2a2458; --text:#f4f1ff; --glow:#716aff; }
-        body { background:radial-gradient(circle at 85% 0%, rgba(13,7,130,.78) 0, transparent 42%), linear-gradient(145deg,#0D0782 0%,#050217 68%); background-attachment:fixed; color:var(--text); }
-        .login-card { background:rgba(16,13,43,.94); border-color:rgba(165,157,255,.2); box-shadow:0 25px 60px rgba(0,0,0,.42); backdrop-filter:blur(14px); }
-        .lock-container { background:rgba(13,7,130,.28); border-color:#5148c8; }
-        .lock-icon { color:#aaa5ff; }
-        h2 { color:#d5d1ff; }
-        input { background:#08061b; color:var(--text); border-color:#39336c; }
-        input:focus { border-color:var(--glow); box-shadow:0 0 0 3px rgba(113,106,255,.2); }
-        button { background:linear-gradient(135deg,#0D0782,#463be0); box-shadow:0 8px 22px rgba(52,43,200,.25); }
-    </style>
-</head>
-<body>
-    <div class="login-card">
-        <div class="lock-container"><i class="fa-solid fa-shield-halved lock-icon"></i></div>
-        <h2>Root Access</h2>
-        {% if error %}<div class="err">{{ error }}</div>{% endif %}
-        <form method="post" action="/admin">
-            <input type="password" name="password" placeholder="••••••" required maxlength="50" autofocus>
-            <button type="submit">Unlock</button>
-        </form>
-    </div>
-</body>
-</html>
-'''
-
-# ============================================================
-# ADMIN PANEL
-# ============================================================
-ADMIN_HTML = '''
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Root | MY HOST</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <style>
-        :root { --bg: #f3faf5; --card: #ffffff; --accent: #159957; --accent-dark:#0b713d; --text: #183326; --muted:#6c8275; --line:#dcebe1; --danger:#d94f5d; }
-        * { box-sizing: border-box; }
-        body { background: radial-gradient(circle at 85% 0%, #e1f5e8 0, transparent 32%), var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 15px; min-height: 100vh; padding-bottom: 60px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 12px; background: var(--card); border-radius: 15px; border: 1px solid var(--line); box-shadow:0 10px 30px rgba(22,83,46,.08); }
-        .header h2 { font-size: 18px; color: var(--accent-dark); margin: 0; }
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-        .stat-card { background: var(--card); padding: 12px; border-radius: 15px; border: 1px solid var(--line); text-align: center; box-shadow:0 10px 30px rgba(22,83,46,.06); }
-        .stat-card p { font-size: 11px; margin: 4px 0; color:var(--muted); }
-        .stat-card div.val { font-size: 17px; font-weight: bold; color: var(--accent-dark); }
-        .card { background: var(--card); padding: 15px; border-radius: 20px; border: 1px solid var(--line); margin-bottom: 18px; box-shadow:0 10px 30px rgba(22,83,46,.06); }
-        h3 { margin-top: 0; font-size: 15px; color: var(--accent-dark); display: flex; align-items: center; gap: 8px; }
-        .input-group { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
-        input, select { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: #f8fcf9; color: var(--text); outline: none; font-size: 13px; box-sizing: border-box; }
-        input:focus, select:focus { border-color:#76c992; box-shadow:0 0 0 3px #dff3e5; }
-        .btn { padding: 10px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; }
-        .btn-primary { background: linear-gradient(135deg, var(--accent-dark), var(--accent)); color: #fff; }
-        .btn-logout { background: var(--danger); color: white; padding: 8px 14px; }
-        .btn-danger { background: var(--danger); color: white; }
-        .btn-gold { background: linear-gradient(135deg, #b9e5c8, #78cc98); color: #15552f; }
-        .btn-small { padding: 6px 10px; font-size: 11px; }
-        .user-item, .proxy-item { background: #f5fbf7; border-radius: 12px; padding: 12px; margin-bottom: 8px; border: 1px solid var(--line); }
-        .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .username { font-weight: bold; color: var(--accent-dark); font-size: 13px; word-break: break-all; }
-        .tag { padding: 3px 8px; border-radius: 6px; font-size: 10px; border: 1px solid; }
-        .tag-green { color: #168b4f; border-color: #73c795; background: #e8f8ed; }
-        .tag-red { color: #a62e3b; border-color: #efabb2; background: #fff0f1; }
-        .tag-gold { color: #168b4f; border-color: #9bd4af; background: #edf8f0; }
-        .action-row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-        .toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
-        .toggle-switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; inset: 0; background: #b7c7bd; border-radius: 24px; transition: .3s; }
-        .slider:before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .3s; }
-        input:checked + .slider { background: var(--accent); }
-        input:checked + .slider:before { transform: translateX(20px); }
-        .small-text { font-size: 11px; color:var(--muted); }
-        .upload-mini { border: 2px dashed #9bd4af; border-radius: 14px; padding: 15px; text-align: center; background:#fbfefc; }
-        :root { --bg:#050217; --card:#100d2b; --accent:#0D0782; --accent-dark:#c9c5ff; --text:#f4f1ff; --muted:#aaa4cb; --line:#2a2458; --danger:#ff657d; --glow:#716aff; }
-        body { background:radial-gradient(circle at 12% 0%, rgba(13,7,130,.78) 0, transparent 42%), linear-gradient(145deg,#0D0782 0%,#050217 68%); background-attachment:fixed; color:var(--text); }
-        .header, .stat-card, .card { background:rgba(16,13,43,.92); border-color:rgba(165,157,255,.18); box-shadow:0 14px 40px rgba(0,0,0,.3); }
-        .header h2, h3, .stat-card div.val, .username { color:#d5d1ff; }
-        input, select { background:#08061b; color:var(--text); border-color:#39336c; }
-        input:focus, select:focus { border-color:var(--glow); box-shadow:0 0 0 3px rgba(113,106,255,.2); }
-        .btn-primary { background:linear-gradient(135deg,#0D0782,#463be0); }
-        .btn-gold { background:linear-gradient(135deg,#342a9b,#716aff); color:#fff; }
-        .user-item, .proxy-item { background:#15113a; border-color:#2a2458; }
-        .tag-green, .tag-gold { color:#c0bcff; border-color:#625bd2; background:rgba(87,78,210,.18); }
-        .slider { background:#514d70; }
-        input:checked + .slider { background:#5148c8; }
-        .upload-mini { border-color:rgba(137,128,255,.65); background:#100d2b; }
-        .swal2-popup { background:#100d2b !important; color:#f4f1ff !important; }
-        .swal2-title, .swal2-html-container { color:#f4f1ff !important; }
-    </style>
-</head>
-<body>
-    <div class="header"><h2><i class="fa-solid fa-shield-halved"></i> MY HOST ROOT</h2><a href="/logout" class="btn btn-logout"><i class="fa-solid fa-power-off"></i></a></div>
-
-    <div class="stats-grid">
-        <div class="stat-card"><p>Users</p><div class="val">{{ users|length }}</div></div>
-        <div class="stat-card"><p>Running Apps</p><div class="val">{{ running_count }}</div></div>
-        <div class="stat-card"><p>RAM Used</p><div class="val">{{ ram_percent }}%</div></div>
-    </div>
-
-    <div class="card">
-        <h3><i class="fa-solid fa-infinity"></i> Admin Unlimited Apps (no 4h sleep)</h3>
-        <div class="upload-mini">
-            <input type="file" id="adminFileInput" accept=".zip" style="display:none;">
-            <button class="btn btn-primary" onclick="document.getElementById('adminFileInput').click()"><i class="fa-solid fa-upload"></i> Upload Admin App</button>
-            <div id="adminUploadStatus" class="small-text" style="margin-top:8px;"></div>
-        </div>
-        {% for a in admin_apps %}
-        <div class="user-item" style="margin-top:10px;">
-            <div class="row">
-                <span><b>{{ a.name }}</b></span>
-                {% if a.running %}<span class="tag tag-green">RUNNING</span>{% else %}<span class="tag tag-red">OFFLINE</span>{% endif %}
-            </div>
-            <div class="small-text">Device: {{ a.device or "—" }} | Unlimited runtime</div>
-            <div class="action-row">
-                {% if a.running %}
-                <a href="/stop/{{ a.name }}" class="btn btn-danger btn-small">Stop</a>
-                {% else %}
-                <a href="/run/{{ a.name }}" class="btn btn-primary btn-small">Run</a>
-                {% endif %}
-                <button class="btn btn-primary btn-small" onclick="getAdminPublicLink('{{ a.name }}')"><i class="fa-solid fa-link"></i> Public Link</button>
-                <a href="/delete/{{ a.name }}" class="btn btn-danger btn-small">Delete</a>
-            </div>
-        </div>
-        {% endfor %}
-        {% if not admin_apps %}<p class="small-text">No admin apps have been uploaded yet.</p>{% endif %}
-    </div>
-
-    <div class="card">
-        <h3><i class="fa-solid fa-sliders"></i> Global Limits</h3>
-        <form action="/admin/update_config" method="post" class="input-group">
-            <label class="small-text">Max apps per normal user (concurrent)</label>
-            <input type="number" name="max_concurrent_per_user" value="{{ config.max_concurrent_per_user }}">
-            <label class="small-text">Max apps per VIP user (concurrent)</label>
-            <input type="number" name="max_concurrent_vip" value="{{ config.max_concurrent_vip }}">
-            <label class="small-text">Max apps server-wide (concurrent)</label>
-            <input type="number" name="max_concurrent_global" value="{{ config.max_concurrent_global }}">
-            <label class="small-text">Auto-sleep after (hours)</label>
-            <input type="number" step="0.1" name="sleep_after_hours" value="{{ config.sleep_after_hours }}">
-            <label class="small-text">Auto-wake after (minutes)</label>
-            <input type="number" name="auto_wake_after_minutes" value="{{ config.auto_wake_after_minutes }}">
-            <button type="submit" class="btn btn-primary">Save Config</button>
-        </form>
-    </div>
-
-    <div class="card">
-        <h3><i class="fa-solid fa-user-gear"></i> User Management</h3>
-        {% for u in users %}
-        <div class="user-item">
-            <div class="row">
-                <span class="username"><i class="fa-solid fa-circle-user"></i> {{ u.email }}</span>
-                <label class="toggle-switch" title="VIP">
-                    <input type="checkbox" {% if u.vip %}checked{% endif %} onchange="toggleVip('{{ u.email }}', this)">
-                    <span class="slider"></span>
-                </label>
-            </div>
-            {% if u.vip %}<span class="tag tag-gold">VIP</span>{% endif %}
-            <div class="action-row">
-                <a href="/admin/login_as/{{ u.email }}" class="btn btn-primary btn-small"><i class="fa-solid fa-sign-in"></i> Login as</a>
-                <form action="/admin/change_pw" method="post" style="display:flex; gap:5px; flex:1;">
-                    <input type="hidden" name="email" value="{{ u.email }}">
-                    <input type="text" name="new_pw" placeholder="New password">
-                    <button type="submit" class="btn btn-primary btn-small"><i class="fa-solid fa-save"></i></button>
-                </form>
-            </div>
-        </div>
-        {% endfor %}
-        {% if not users %}<p class="small-text">No users have been created yet.</p>{% endif %}
-    </div>
-
-    <div class="card">
-        <h3><i class="fa-solid fa-server"></i> All User Apps</h3>
-        {% for a in all_apps %}
-        <div class="user-item">
-            <div class="row">
-                <span style="font-size:12px;"><b>{{ a.user }}</b> / {{ a.name }}</span>
-                {% if a.running %}<span class="tag tag-green">RUNNING</span>{% else %}<span class="tag tag-red">OFFLINE</span>{% endif %}
-            </div>
-            <div class="small-text">Device: {{ a.device or "—" }} | Auto-On: {{ "Yes" if a.auto_on else "No" }} | Auto-Restart: {{ "Yes" if a.auto_restart else "No" }}</div>
-        </div>
-        {% endfor %}
-        {% if not all_apps %}<p class="small-text">No apps have been uploaded yet.</p>{% endif %}
-    </div>
-
-<script>
-function toggleVip(email, checkbox) {
-    const fd = new FormData();
-    fd.append('email', email);
-    fetch('/admin/toggle_vip', { method: 'POST', body: fd })
-        .then(r => r.json()).then(res => {
-            if (!res.ok) { checkbox.checked = !checkbox.checked; }
-            else { setTimeout(() => location.reload(), 300); }
-        });
-}
-
-document.getElementById('adminFileInput').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const statusDiv = document.getElementById('adminUploadStatus');
-    statusDiv.textContent = 'Uploading...';
-    const fd = new FormData();
-    fd.append('file', file, file.name);
-    fetch('/admin/upload_admin_app', { method: 'POST', body: fd })
-        .then(r => r.json()).then(res => {
-            if (res.ok) { statusDiv.textContent = 'Deployed!'; setTimeout(() => location.reload(), 700); }
-            else { statusDiv.textContent = ''; Swal.fire('Error', res.error || 'Upload fail', 'error'); }
-        });
-});
-
-function getAdminPublicLink(name) {
-    fetch('/admin/get_public_link/' + encodeURIComponent(name), { method: 'POST' })
-        .then(r => r.json()).then(res => {
-            if (res.ok) {
-                Swal.fire({
-                    title: 'Public Link',
-                    html: '<input readonly style="width:100%;padding:8px;" value="' + res.url + '" onclick="this.select()">',
-                    confirmButtonText: 'Close'
-                });
-            } else {
-                     Swal.fire('Error', res.error || 'Unable to create the link', 'error');
-            }
-        });
-}
-</script>
-</body>
-</html>
-'''
-
-# ============================================================
-# PUBLIC SHARE PAGE (no login — status, start/stop, logs only)
 # ============================================================
 PUBLIC_HTML = '''
 <!DOCTYPE html>
@@ -1252,100 +939,128 @@ PUBLIC_HTML = '''
 def _boot():
     ensure_scheduler()
 
-@app.route("/login", methods=["GET", "POST"])
+class FirebaseAuthError(Exception):
+    pass
+
+
+def firebase_identity_request(method, payload):
+    api_key = FIREBASE_WEB_CONFIG["apiKey"]
+    url = f"https://identitytoolkit.googleapis.com/v1/{method}?key={quote(api_key)}"
+    req = Request(url, data=json.dumps(payload).encode("utf-8"),
+                  headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urlopen(req, timeout=15) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        try:
+            detail = json.loads(exc.read().decode("utf-8"))
+            message = detail.get("error", {}).get("message", "Firebase request failed")
+        except Exception:
+            message = "Firebase request failed"
+        raise FirebaseAuthError(message) from exc
+    except (URLError, TimeoutError) as exc:
+        raise FirebaseAuthError("Could not connect to Firebase. Please try again.") from exc
+
+
+def _firestore_document_url(uid):
+    project = quote(FIREBASE_WEB_CONFIG["projectId"], safe="")
+    return (f"https://firestore.googleapis.com/v1/projects/{project}/databases/"
+            f"(default)/documents/users/{quote(uid, safe='')}")
+
+
+def firebase_get_profile(uid, id_token):
+    req = Request(_firestore_document_url(uid), headers={"Authorization": f"Bearer {id_token}"})
+    try:
+        with urlopen(req, timeout=12) as response:
+            doc = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        if exc.code == 404:
+            return None
+        raise FirebaseAuthError("Could not read the user's Firestore profile.") from exc
+    fields = doc.get("fields", {})
+    return {key: value.get("stringValue", "") for key, value in fields.items()}
+
+
+def firebase_create_profile(uid, email, name, id_token):
+    payload = {"fields": {
+        "uid": {"stringValue": uid},
+        "email": {"stringValue": email},
+        "name": {"stringValue": name or email.split("@", 1)[0]},
+        "status": {"stringValue": "Active"},
+    }}
+    req = Request(_firestore_document_url(uid), data=json.dumps(payload).encode("utf-8"),
+                  headers={"Authorization": f"Bearer {id_token}", "Content-Type": "application/json"},
+                  method="PATCH")
+    try:
+        with urlopen(req, timeout=12):
+            return
+    except HTTPError as exc:
+        raise FirebaseAuthError("Firebase Auth succeeded, but Firestore could not save the user profile. Check Firestore rules.") from exc
+    except (URLError, TimeoutError) as exc:
+        raise FirebaseAuthError("Firebase Auth succeeded, but Firestore profile sync failed.") from exc
+
+
+@app.route("/login", methods=["GET"])
 def login():
-    error = None
-    if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        pw = request.form.get("password", "").strip()
+    if require_login():
+        return redirect(url_for("index"))
+    return render_template("login.html", firebase_config=FIREBASE_WEB_CONFIG)
 
-        if not is_valid_email(email):
-            error = "Enter a valid email address (for example, you@example.com)."
-            return render_template_string(LOGIN_HTML, error=error)
-        if not pw or len(pw) < 4:
-            error = "Password must be at least 4 characters long."
-            return render_template_string(LOGIN_HTML, error=error)
 
-        if is_locked_out(email):
-            error = "Too many failed attempts. Try again in 1 minute."
-            return render_template_string(LOGIN_HTML, error=error)
+@app.route("/register", methods=["GET"])
+def register():
+    if require_login():
+        return redirect(url_for("index"))
+    return render_template("register.html", firebase_config=FIREBASE_WEB_CONFIG)
 
-        db = load_db()
-        folder_id = user_folder_id(email)
 
-        if email not in db["users"]:
-            if not ALLOW_SIGNUP:
-                error = "New account registration is disabled on this deployment. Use the administrator login."
-                return render_template_string(LOGIN_HTML, error=error)
-            # first time seeing this email -> register it now
-            db["users"][email] = {"pw_hash": generate_password_hash(pw), "vip": False, "created": int(time.time() * 1000)}
-            save_db(db)
-            session['is_admin'], session['username'], session['user_folder'] = False, email, folder_id
-            reset_login_attempts(email)
-            return redirect(url_for("index"))
+@app.route("/auth/session", methods=["POST"])
+def firebase_session():
+    body = request.get_json(silent=True) or {}
+    id_token = body.get("idToken", "")
+    if not isinstance(id_token, str) or len(id_token) < 100:
+        return jsonify({"ok": False, "error": "Firebase sign-in token is missing or invalid."}), 400
+    try:
+        lookup = firebase_identity_request("accounts:lookup", {"idToken": id_token})
+        users = lookup.get("users", [])
+        if not users:
+            return jsonify({"ok": False, "error": "Firebase account was not found."}), 401
+        user = users[0]
+        if user.get("disabled"):
+            return jsonify({"ok": False, "error": "This account has been disabled."}), 403
+        uid = user.get("localId", "")
+        email = user.get("email", "").strip().lower()
+        if not uid or not is_valid_email(email):
+            return jsonify({"ok": False, "error": "Firebase did not return a valid account."}), 401
+        display_name = user.get("displayName") or email.split("@", 1)[0]
+        profile = firebase_get_profile(uid, id_token)
+        if profile and str(profile.get("status", "Active")).lower() in {"blocked", "disabled"}:
+            return jsonify({"ok": False, "error": "This account is blocked. Contact the administrator."}), 403
+        if not profile:
+            firebase_create_profile(uid, email, display_name, id_token)
+        session.clear()
+        session.permanent = True
+        session["username"] = email
+        session["uid"] = uid
+        session["user_folder"] = user_folder_id(email)
+        return jsonify({"ok": True, "redirect": url_for("index")})
+    except FirebaseAuthError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 401
 
-        if check_password_hash(db["users"][email]["pw_hash"], pw):
-            session['is_admin'], session['username'], session['user_folder'] = False, email, folder_id
-            reset_login_attempts(email)
-            return redirect(url_for("index"))
-
-        register_failed_login(email)
-        error = "Incorrect password for this email."
-    return render_template_string(LOGIN_HTML, error=error)
-
-@app.route("/admin", methods=["GET", "POST"])
-def admin_login():
-    # already-logged-in-this-session admins go straight to the panel
-    if session.get('is_admin'):
-        return redirect(url_for("admin_panel"))
-
-    db = load_db()
-    trusted_cookie = request.cookies.get("admin_trust")
-    if trusted_cookie and trusted_cookie in db.get("admin_device_tokens", {}):
-        session['is_admin'], session['username'] = True, ADMIN_INTERNAL_ID
-        return redirect(url_for("admin_panel"))
-
-    error = None
-    if request.method == "POST":
-        pw = request.form.get("password", "").strip()
-        if is_locked_out("__admin_pw__"):
-            error = "Too many failed attempts. Try again in 1 minute."
-        elif ADMIN_PASS_ENV and pw == ADMIN_PASS_ENV:
-            reset_login_attempts("__admin_pw__")
-            session['is_admin'], session['username'] = True, ADMIN_INTERNAL_ID
-            token = generate_secret_token()
-            db.setdefault("admin_device_tokens", {})[token] = True
-            save_db(db)
-            resp = redirect(url_for("admin_panel"))
-            resp.set_cookie("admin_trust", token, max_age=60 * 60 * 24 * 365, httponly=True, samesite="Lax")
-            return resp
-        else:
-            register_failed_login("__admin_pw__")
-            error = "Incorrect password."
-    return render_template_string(ADMIN_LOGIN_HTML, error=error)
 
 @app.route("/logout")
 def logout():
-    was_admin = session.get('is_admin', False)
     session.clear()
-    if was_admin:
-        resp = redirect(url_for("login"))
-        resp.delete_cookie("admin_trust")
-        return resp
-    return redirect(url_for("login"))
+    return redirect(url_for("login", logged_out="1"))
+
 
 def require_login():
-    return 'username' in session
+    return bool(session.get("username") and session.get("user_folder"))
 
-def require_admin():
-    return session.get('is_admin', False)
 
 def current_user_key():
-    """Returns the filesystem-safe folder key for whoever is logged in:
-    the admin gets a fixed internal id, normal users get a hash of their email."""
-    if session.get('is_admin'):
-        return ADMIN_INTERNAL_ID
-    return session.get('user_folder') or user_folder_id(session.get('username', ''))
+    """Returns the stable per-email directory key for the signed-in Firebase user."""
+    return session.get("user_folder") or user_folder_id(session.get("username", ""))
 
 # ============================================================
 # ROUTES — DASHBOARD
@@ -1382,13 +1097,13 @@ def index():
             "remaining_run_min": round(remaining_run / 60, 1),
             "remaining_wake_min": round(remaining_wake / 60, 1),
         })
-    display_name = "Admin" if session.get('is_admin') else session.get('username', user_name)
+    display_name = session.get("username", user_name)
     return render_template("index.html", apps=apps_list, username=display_name)
 
 # ============================================================
 # ROUTES — UPLOAD / VALIDATE / DEPLOY
 # ============================================================
-def _do_upload(user_name, mark_unlimited=False):
+def _do_upload(user_name):
     file = request.files.get("file")
     overwrite = request.form.get("overwrite") == "true"
 
@@ -1449,11 +1164,6 @@ def _do_upload(user_name, mark_unlimited=False):
     if not os.path.exists(extract_dir) or not os.listdir(extract_dir):
         shutil.rmtree(user_dir, ignore_errors=True)
         return jsonify({"ok": False, "error": "No files were found after extraction; the ZIP may be empty."}), 400
-
-    if mark_unlimited:
-        settings = get_app_settings(db, user_name, app_name)
-        settings["unlimited"] = True
-        save_db(db)
 
     entry, kind, project_root = find_project(extract_dir)
     if not entry:
@@ -1773,125 +1483,6 @@ def delete_file_api():
         os.remove(path)
         return jsonify({"status": "deleted"})
     return jsonify({"status": "error", "error": "File not found"}), 404
-
-# ============================================================
-# ROUTES — ADMIN
-# ============================================================
-@app.route("/admin/panel")
-def admin_panel():
-    if not require_admin():
-        return redirect(url_for("admin_login"))
-    db = load_db()
-    running_count = count_running_global()
-    try:
-        import psutil
-        ram_percent = psutil.virtual_memory().percent
-    except Exception:
-        ram_percent = "N/A"
-
-    all_apps = []
-    admin_apps = []
-    if os.path.exists(UPLOAD_FOLDER):
-        for user in sorted(os.listdir(UPLOAD_FOLDER)):
-            user_dir = os.path.join(UPLOAD_FOLDER, user)
-            if not os.path.isdir(user_dir):
-                continue
-            for name in sorted(os.listdir(user_dir)):
-                if not os.path.isdir(os.path.join(user_dir, name)):
-                    continue
-                p = processes.get((user, name))
-                running = bool(p and p.poll() is None)
-                settings = get_app_settings(db, user, name)
-                entry = {
-                    "user": user, "name": name, "running": running,
-                    "device": settings.get("device_platform"),
-                    "auto_on": settings.get("auto_on"),
-                    "auto_restart": settings.get("auto_restart"),
-                }
-                if user == ADMIN_INTERNAL_ID:
-                    admin_apps.append(entry)
-                else:
-                    all_apps.append(entry)
-
-    users_list = []
-    for email, rec in db.get("users", {}).items():
-        users_list.append({"email": email, "vip": rec.get("vip", False)})
-
-    return render_template_string(ADMIN_HTML, users=users_list,
-                                   config=db.get("config", default_db()["config"]),
-                                   running_count=running_count, ram_percent=ram_percent,
-                                   all_apps=all_apps, admin_apps=admin_apps)
-
-@app.route("/admin/update_config", methods=["POST"])
-def admin_update_config():
-    if not require_admin():
-        return redirect(url_for("admin_login"))
-    db = load_db()
-    cfg = db.setdefault("config", {})
-    for field, cast in [("max_concurrent_per_user", int), ("max_concurrent_vip", int),
-                         ("max_concurrent_global", int),
-                         ("sleep_after_hours", float), ("auto_wake_after_minutes", int)]:
-        val = request.form.get(field)
-        if val is not None:
-            try:
-                cfg[field] = cast(val)
-            except ValueError:
-                pass
-    save_db(db)
-    return redirect(url_for("admin_panel"))
-
-@app.route("/admin/toggle_vip", methods=["POST"])
-def admin_toggle_vip():
-    if not require_admin():
-        return jsonify({"ok": False}), 401
-    email = request.form.get("email", "").strip().lower()
-    db = load_db()
-    if email in db["users"]:
-        db["users"][email]["vip"] = not db["users"][email].get("vip", False)
-        save_db(db)
-        return jsonify({"ok": True, "vip": db["users"][email]["vip"]})
-    return jsonify({"ok": False, "error": "User not found"}), 404
-
-@app.route("/admin/change_pw", methods=["POST"])
-def change_pw():
-    if not require_admin():
-        return redirect(url_for("admin_login"))
-    email, new_pw = request.form.get("email", "").strip().lower(), request.form.get("new_pw", "").strip()
-    db = load_db()
-    if email in db["users"] and new_pw:
-        db["users"][email]["pw_hash"] = generate_password_hash(new_pw)
-        save_db(db)
-    return redirect(url_for("admin_panel"))
-
-@app.route("/admin/login_as/<path:email>")
-def login_as(email):
-    if not require_admin():
-        return redirect(url_for("admin_login"))
-    db = load_db()
-    email = email.strip().lower()
-    if email not in db["users"]:
-        return redirect(url_for("admin_panel"))
-    session['username'], session['is_admin'] = email, False
-    session['user_folder'] = user_folder_id(email)
-    return redirect(url_for("index"))
-
-@app.route("/admin/upload_admin_app", methods=["POST"])
-def admin_upload_app():
-    """Admin's own apps get uploaded through the same pipeline as user uploads,
-    just stored under the internal admin folder and flagged unlimited (no 4h sleep)."""
-    if not require_admin():
-        return jsonify({"ok": False, "error": "Login required"}), 401
-    return _do_upload(ADMIN_INTERNAL_ID, mark_unlimited=True)
-
-@app.route("/admin/get_public_link/<name>", methods=["POST"])
-def admin_get_public_link(name):
-    if not require_admin():
-        return jsonify({"ok": False}), 401
-    if not is_safe_component(name):
-        return jsonify({"ok": False, "error": "Invalid name"}), 400
-    db = load_db()
-    token = ensure_public_token(db, ADMIN_INTERNAL_ID, name)
-    return jsonify({"ok": True, "token": token, "url": url_for("public_view", token=token, _external=True)})
 
 if __name__ == "__main__":
     ensure_scheduler()

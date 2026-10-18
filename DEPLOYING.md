@@ -21,7 +21,11 @@ Where several runtimes are present in one folder, the matching manifest (`compos
 
 The dependency manager and executable must exist in the hosting image. The included `Dockerfile` installs Python, Node.js/npm, PHP CLI, and Composer for Railway or Render Docker deployments. The outer panel itself is still a Flask/Gunicorn service.
 
-For an admin-only Render test service, set `ALLOW_SIGNUP=false`, and set strong, unique `ADMIN_PASS` and `SECRET_KEY` values in Render's environment settings. This blocks the app's default first-login account creation; use `/admin` for administrator access. The service still has a public URL, so keep the admin password private.
+## Firebase authentication
+
+The panel uses separate `/login` and `/register` pages backed by Firebase Email/Password Authentication. The Firebase Web configuration in `app.py` is public client configuration; Firestore Security Rules—not the web API key—control database access. New registrations create a `users/{uid}` profile document with the name, email, and status fields. Keep a stable Flask `SECRET_KEY` in the hosting provider's environment so user sessions survive restarts.
+
+The private `admin.html` is delivered separately and is not part of the repository. It manages Firestore profile documents only. Its password gate is client-side, and it cannot list or delete Firebase Authentication accounts. Direct Firestore operations depend on the project's existing Security Rules; this code does not open or weaken those rules. A `Blocked` profile is rejected at the next Firebase-to-panel session exchange.
 
 ## Storage and hosting
 
