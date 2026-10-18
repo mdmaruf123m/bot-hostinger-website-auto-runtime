@@ -16,6 +16,7 @@ from collections import defaultdict, deque
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
+from cryptography.fernet import Fernet, InvalidToken
 
 from dotenv import load_dotenv
 
@@ -58,6 +59,8 @@ os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(VENV_FOLDER, exist_ok=True)
 os.makedirs(LOG_FOLDER, exist_ok=True)
+APP_ENV_KEY_FILE = os.path.join(DATA_DIR, ".app_env_encryption.key")
+APP_ENV_KEY_LOCK = threading.Lock()
 
 
 ENTRY_FILES_PY = ["main.py", "bot.py", "app.py", "run.py", "start.py"]
@@ -81,6 +84,7 @@ def default_db():
     return {
         "start_times": {},        # "user_app" -> epoch ms
         "app_settings": {},       # "user_app" -> {auto_on, auto_restart, sleep_until, req_hash, device, public_token}
+        "app_env": {},            # app settings key -> {variable name: Fernet ciphertext}
         "public_tokens": {},      # token -> "user_app"  (reverse lookup for public share links)
         "config": {
             "max_concurrent_per_user": 3,
@@ -176,6 +180,40 @@ def user_folder_id(email):
 
 def generate_secret_token(nbytes=24):
     return os.urandom(nbytes).hex()
+
+def _app_env_fernet():
+    """Load or create the stable, private key used to encrypt app env values."""
+    with APP_ENV_KEY_LOCK:
+        try:
+            fd = os.open(APP_ENV_KEY_FILE, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            fd = None
+        if fd is not None:
+            with os.fdopen(fd, "wb") as key_file:
+                key_file.write(Fernet.generate_key())
+        os.chmod(APP_ENV_KEY_FILE, 0o600)
+        with open(APP_ENV_KEY_FILE, "rb") as key_file:
+            return Fernet(key_file.read().strip())
+
+def get_app_env_values(user, name):
+    db = load_db()
+    encrypted = db.get("app_env", {}).get(app_settings_key(user, name), {})
+    if not encrypted:
+        return {}
+    fernet = _app_env_fernet()
+    values = {}
+    for variable, ciphertext in encrypted.items():
+        try:
+            values[variable] = fernet.decrypt(ciphertext.encode("ascii")).decode("utf-8")
+        except (InvalidToken, UnicodeError, ValueError) as exc:
+            raise RuntimeError("Saved environment secrets cannot be decrypted. Keep the panel data directory and .app_env_encryption.key together.") from exc
+    return values
+
+APP_ENV_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,127}$")
+APP_ENV_RESERVED = {"PATH", "HOME", "PWD", "OLDPWD", "PORT", "DATA_DIR", "SECRET_KEY", "PYTHONUNBUFFERED", "NODE_OPTIONS", "NODE_PATH", "COMPOSER_VENDOR_DIR", "COMPOSER_CACHE_DIR"}
+
+def validate_app_env_name(name):
+    return bool(APP_ENV_NAME_RE.fullmatch(name or "")) and name.upper() not in APP_ENV_RESERVED and not name.upper().startswith(("LD_", "PYTHON", "PHP_", "COMPOSER_"))
 
 # ============================================================
 # DEVICE FINGERPRINT POOL
@@ -739,6 +777,11 @@ def start_app_process(user, name, db):
     env.update(device_env_vars(device))
     env.update(runtime_env)
     env["PYTHONUNBUFFERED"] = "1"
+    try:
+        env.update(get_app_env_values(user, name))
+    except RuntimeError as e:
+        append_log(log_path, f"Environment secret error: {e}\n")
+        return {"ok": False, "error": str(e)}
 
     trim_log_if_needed(log_path)
     log_file = open(log_path, "a", encoding="utf-8", errors="ignore")
@@ -1332,6 +1375,7 @@ def delete_app_route(name):
         shutil.rmtree(dependency_cache, ignore_errors=True)
     key = app_settings_key(user_name, name)
     db.get("app_settings", {}).pop(key, None)
+    db.get("app_env", {}).pop(key, None)
     db.get("start_times", {}).pop(key, None)
     save_db(db)
     return redirect(url_for("index"))
@@ -1361,6 +1405,51 @@ def toggle_auto_restart(name):
     settings["auto_restart"] = not settings.get("auto_restart", False)
     save_db(db)
     return jsonify({"ok": True, "auto_restart": settings["auto_restart"]})
+
+@app.route("/api/apps/<name>/env", methods=["GET", "PUT", "DELETE"])
+def app_environment(name):
+    if not require_login():
+        return jsonify({"ok": False, "error": "Login required"}), 401
+    if not is_safe_component(name):
+        return jsonify({"ok": False, "error": "Invalid app name"}), 400
+    user = current_user_key()
+    _, extract_dir, _ = app_dirs(user, name)
+    if not os.path.isdir(extract_dir):
+        return jsonify({"ok": False, "error": "App not found"}), 404
+    key = app_settings_key(user, name)
+    db = load_db()
+    app_env = db.setdefault("app_env", {})
+    if request.method == "GET":
+        return jsonify({"ok": True, "variables": sorted(app_env.get(key, {}).keys())})
+    if request.method == "DELETE":
+        variable = request.args.get("name", "")
+        if not validate_app_env_name(variable):
+            return jsonify({"ok": False, "error": "Invalid or reserved environment variable name"}), 400
+        values = app_env.get(key, {})
+        if variable not in values:
+            return jsonify({"ok": False, "error": "Variable not found"}), 404
+        values.pop(variable, None)
+        if not values:
+            app_env.pop(key, None)
+        save_db(db)
+        return jsonify({"ok": True, "variables": sorted(values.keys())})
+    payload = request.get_json(silent=True) or {}
+    variable = str(payload.get("name", "")).strip()
+    value = payload.get("value")
+    if not validate_app_env_name(variable):
+        return jsonify({"ok": False, "error": "Use a valid, non-reserved name, for example TELEGRAM_BOT_TOKEN."}), 400
+    if not isinstance(value, str) or len(value) > 8192:
+        return jsonify({"ok": False, "error": "Value must be text and no longer than 8,192 characters."}), 400
+    values = app_env.setdefault(key, {})
+    if variable not in values and len(values) >= 40:
+        return jsonify({"ok": False, "error": "An app can have at most 40 environment variables."}), 400
+    try:
+        values[variable] = _app_env_fernet().encrypt(value.encode("utf-8")).decode("ascii")
+    except Exception:
+        app.logger.exception("Could not encrypt app environment variable")
+        return jsonify({"ok": False, "error": "Could not securely save this variable."}), 500
+    save_db(db)
+    return jsonify({"ok": True, "variables": sorted(values.keys()), "message": "Saved securely. Restart the app for the new value to take effect."})
 
 @app.route("/get_log/<name>")
 def get_log(name):

@@ -1,3 +1,9 @@
+## App environment variables and secrets
+
+Dashboard-এ প্রতিটি bot card-এর **Env Vars** button থেকে variable name/value যোগ, update বা delete করুন। Telegram bot-এর জন্য name দিন `TELEGRAM_BOT_TOKEN`; value হবে সেই bot-এর মালিকের BotFather token। ZIP বা source code-এ token রাখবেন না। Saved value database-এ Fernet encryption-এ থাকে; UI/API পরে value ফেরত দেখায় না, শুধু variable names দেখায়। নতুন value কার্যকর করতে bot-টি restart করুন। App delete করলে ওই app-এর secrets-ও মুছে যায়। Download ZIP-এ environment variables থাকে না।
+
+Encryption key `.app_env_encryption.key` নামে `DATA_DIR`-এ তৈরি হয়; persistent backup/restore-এ `database.json`-এর সঙ্গে এই key-টিও একসঙ্গে রাখুন। Key হারালে encrypted values আর decrypt করা যাবে না। Key-টি GitHub-এ দেবেন না বা public করবেন না।
+
 ## Portable Node.js and PHP runtimes
 
 BotKeep container-এ Node.js/npm বা PHP CLI আগে থেকে না থাকলে, project detected হলে panel প্রথম Run-এর সময় official Node.js checksum manifest দিয়ে Node archive যাচাই করে এবং PHP CLI-এর portable binary download করে writable `runtime_bins/` cache-এ রাখে। Composer packages থাকলে Composer PHAR-ও তার published SHA-256 দিয়ে যাচাই করে download হয়। এর জন্য root/sudo লাগে না। প্রথম Run-এ internet থেকে runtime নামানোর কারণে সময় বেশি লাগতে পারে।
