@@ -899,6 +899,16 @@ LOGIN_HTML = '''
         input, select { width: 100%; padding: 14px; margin: 8px 0; border-radius: 12px; border: 1px solid var(--line); background: #f8fcf9; color: #183326; outline: none; font-size: 14px; box-sizing: border-box; }
         input:focus, select:focus { border-color: #76c992; box-shadow: 0 0 0 3px #dff3e5; }
         button { width: 100%; padding: 15px; border-radius: 12px; border: none; background: linear-gradient(135deg, var(--sec), var(--primary)); color: #fff; font-weight: bold; font-size: 15px; cursor: pointer; margin-top: 10px; text-transform: uppercase; letter-spacing: 2px; }
+        :root { --bg:#050217; --primary:#0D0782; --sec:#11104f; --surface:#100d2b; --muted:#aaa4cb; --line:#2a2458; --text:#f4f1ff; --glow:#716aff; }
+        body { background:radial-gradient(circle at 15% 0%, rgba(13,7,130,.78) 0, transparent 42%), linear-gradient(145deg,#0D0782 0%,#050217 68%); background-attachment:fixed; color:var(--text); }
+        .login-card { background:rgba(16,13,43,.94); border-color:rgba(165,157,255,.2); box-shadow:0 25px 60px rgba(0,0,0,.42); backdrop-filter:blur(14px); }
+        .lock-container { background:rgba(13,7,130,.28); border-color:#5148c8; }
+        .lock-icon { color:#aaa5ff; }
+        h2 { color:#d5d1ff; }
+        .sub { color:var(--muted); }
+        input, select { background:#08061b; color:var(--text); border-color:#39336c; }
+        input:focus, select:focus { border-color:var(--glow); box-shadow:0 0 0 3px rgba(113,106,255,.2); }
+        button { background:linear-gradient(135deg,#0D0782,#463be0); box-shadow:0 8px 22px rgba(52,43,200,.25); }
     </style>
 </head>
 <body>
@@ -935,6 +945,15 @@ ADMIN_LOGIN_HTML = '''
         input { width: 100%; padding: 14px; margin: 8px 0; border-radius: 12px; border: 1px solid var(--line); background: #f8fcf9; color: #183326; outline: none; font-size: 14px; box-sizing: border-box; text-align: center; letter-spacing: 4px; }
         input:focus { border-color: #76c992; box-shadow: 0 0 0 3px #dff3e5; }
         button { width: 100%; padding: 15px; border-radius: 12px; border: none; background: linear-gradient(135deg, var(--sec), var(--primary)); color: #fff; font-weight: bold; font-size: 15px; cursor: pointer; margin-top: 10px; text-transform: uppercase; letter-spacing: 2px; }
+        :root { --bg:#050217; --primary:#0D0782; --sec:#11104f; --surface:#100d2b; --muted:#aaa4cb; --line:#2a2458; --text:#f4f1ff; --glow:#716aff; }
+        body { background:radial-gradient(circle at 85% 0%, rgba(13,7,130,.78) 0, transparent 42%), linear-gradient(145deg,#0D0782 0%,#050217 68%); background-attachment:fixed; color:var(--text); }
+        .login-card { background:rgba(16,13,43,.94); border-color:rgba(165,157,255,.2); box-shadow:0 25px 60px rgba(0,0,0,.42); backdrop-filter:blur(14px); }
+        .lock-container { background:rgba(13,7,130,.28); border-color:#5148c8; }
+        .lock-icon { color:#aaa5ff; }
+        h2 { color:#d5d1ff; }
+        input { background:#08061b; color:var(--text); border-color:#39336c; }
+        input:focus { border-color:var(--glow); box-shadow:0 0 0 3px rgba(113,106,255,.2); }
+        button { background:linear-gradient(135deg,#0D0782,#463be0); box-shadow:0 8px 22px rgba(52,43,200,.25); }
     </style>
 </head>
 <body>
@@ -1000,6 +1019,21 @@ ADMIN_HTML = '''
         input:checked + .slider:before { transform: translateX(20px); }
         .small-text { font-size: 11px; color:var(--muted); }
         .upload-mini { border: 2px dashed #9bd4af; border-radius: 14px; padding: 15px; text-align: center; background:#fbfefc; }
+        :root { --bg:#050217; --card:#100d2b; --accent:#0D0782; --accent-dark:#c9c5ff; --text:#f4f1ff; --muted:#aaa4cb; --line:#2a2458; --danger:#ff657d; --glow:#716aff; }
+        body { background:radial-gradient(circle at 12% 0%, rgba(13,7,130,.78) 0, transparent 42%), linear-gradient(145deg,#0D0782 0%,#050217 68%); background-attachment:fixed; color:var(--text); }
+        .header, .stat-card, .card { background:rgba(16,13,43,.92); border-color:rgba(165,157,255,.18); box-shadow:0 14px 40px rgba(0,0,0,.3); }
+        .header h2, h3, .stat-card div.val, .username { color:#d5d1ff; }
+        input, select { background:#08061b; color:var(--text); border-color:#39336c; }
+        input:focus, select:focus { border-color:var(--glow); box-shadow:0 0 0 3px rgba(113,106,255,.2); }
+        .btn-primary { background:linear-gradient(135deg,#0D0782,#463be0); }
+        .btn-gold { background:linear-gradient(135deg,#342a9b,#716aff); color:#fff; }
+        .user-item, .proxy-item { background:#15113a; border-color:#2a2458; }
+        .tag-green, .tag-gold { color:#c0bcff; border-color:#625bd2; background:rgba(87,78,210,.18); }
+        .slider { background:#514d70; }
+        input:checked + .slider { background:#5148c8; }
+        .upload-mini { border-color:rgba(137,128,255,.65); background:#100d2b; }
+        .swal2-popup { background:#100d2b !important; color:#f4f1ff !important; }
+        .swal2-title, .swal2-html-container { color:#f4f1ff !important; }
     </style>
 </head>
 <body>
@@ -1152,18 +1186,18 @@ PUBLIC_HTML = '''
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        :root { --bg: #0a0f1e; --primary: #2563eb; --card: rgba(22,27,34,0.85); --text: #e6edf3; }
+        :root { --bg: #050217; --primary: #0D0782; --card: rgba(16,13,43,.92); --text: #f4f1ff; --success:#a49eff; }
         * { box-sizing: border-box; }
-        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 15px; }
+        body { background: radial-gradient(circle at 12% 0%, rgba(13,7,130,.78) 0, transparent 42%), linear-gradient(145deg,#0D0782 0%,#050217 68%); background-attachment:fixed; color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 15px; }
         .card { background: var(--card); border-radius: 18px; padding: 20px; border: 1px solid rgba(255,255,255,0.08); max-width: 500px; margin: 20px auto; }
         h2 { color: var(--primary); font-size: 18px; margin-top: 0; }
         .status-pill { font-size: 11px; padding: 5px 12px; border-radius: 20px; border: 1px solid; }
-        .status-run { color: #2ecc71; border-color: #2ecc71; background: rgba(46,204,113,0.1); }
+        .status-run { color: var(--success); border-color: #625bd2; background: rgba(87,78,210,.18); }
         .status-off { color: #ef4444; border-color: #ef4444; background: rgba(239,68,68,0.1); }
         .btn { padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; font-size: 14px; width: 100%; margin-top: 10px; color: #fff; }
-        .btn-primary { background: linear-gradient(45deg, #2563eb, #1d4ed8); color: #fff; }
+        .btn-primary { background: linear-gradient(135deg, #0D0782, #463be0); color: #fff; }
         .btn-danger { background: #ef4444; }
-        #logBox { background: #000; color: #0f0; font-family: monospace; font-size: 11px; padding: 10px; border-radius: 8px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; margin-top: 15px; }
+        #logBox { background: #08061b; color: #c6c1ff; font-family: monospace; font-size: 11px; padding: 10px; border-radius: 8px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; margin-top: 15px; }
         .small-text { font-size: 11px; opacity: 0.6; margin-top: 10px; }
     </style>
 </head>
