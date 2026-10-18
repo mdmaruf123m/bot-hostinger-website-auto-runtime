@@ -40,7 +40,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(VENV_FOLDER, exist_ok=True)
 os.makedirs(LOG_FOLDER, exist_ok=True)
 
-ADMIN_PASS_ENV = os.environ.get("ADMIN_PASS", "112233")
+ADMIN_PASS_ENV = os.environ.get("ADMIN_PASS", "")
 ALLOW_SIGNUP = os.environ.get("ALLOW_SIGNUP", "true").strip().lower() in {"1", "true", "yes", "on"}
 ADMIN_INTERNAL_ID = "__admin__"   # internal folder/key used for admin's own unlimited apps
 
@@ -1272,7 +1272,7 @@ def admin_login():
         pw = request.form.get("password", "").strip()
         if is_locked_out("__admin_pw__"):
             error = "Too many failed attempts. Try again in 1 minute."
-        elif pw == ADMIN_PASS_ENV:
+        elif ADMIN_PASS_ENV and pw == ADMIN_PASS_ENV:
             reset_login_attempts("__admin_pw__")
             session['is_admin'], session['username'] = True, ADMIN_INTERNAL_ID
             token = generate_secret_token()
