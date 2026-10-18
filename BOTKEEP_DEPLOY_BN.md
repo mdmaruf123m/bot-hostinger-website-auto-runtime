@@ -8,12 +8,12 @@
 2. Repository root/project directory-তে `requirements.txt` আছে নিশ্চিত করুন।
 3. Start command দিন: `python botkeep_start.py`। Launcher BotKeep-এর `SERVER_PORT` ব্যবহার করে, না থাকলে `PORT`, তারপর `8080`।
 4. Python version হিসেবে BotKeep-এ বর্তমানে offered version থেকে Python 3.11 বা 3.12 বেছে নিন।
-5. Environment/Secrets-এ এই values দিন:
+5. Environment/Secrets-এ এই values দিন। App startup-এর আগে `python-dotenv` দিয়ে BotKeep-এর project-root `.env` ফাইলও load করে:
    - `ALLOW_SIGNUP=false`
    - `ADMIN_PASS` = আপনার নিজের শক্তিশালী, অনন্য admin password
    - `SECRET_KEY` = দীর্ঘ, random secret
    - `DATA_DIR` = BotKeep-এর dashboard-এ যে writable persistent directory/volume path দেখায়, সেই exact path
-6. Deploy করুন। Console-এ `venv`, `pip`, permission, package install বা storage error আছে কি না দেখুন। Assigned app URL-এ panel খুলে admin login দিয়ে যাচাই করুন।
+6. Deploy করুন। Console-এ `venv`, `pip`, permission, package install বা storage error আছে কি না দেখুন। Assigned app URL-এ `/admin` খুলে admin login দিয়ে যাচাই করুন।
 
 **গুরুত্বপূর্ণ:** BotKeep-এর persistent storage path dashboard-এ আলাদা করে দেখানো থাকলে সেটিই `DATA_DIR` হিসেবে ব্যবহার করুন। Path নিশ্চিত না হলে সেটি আন্দাজ করে দেবেন না। Persistent writable storage না থাকলে account database, uploaded bot files, logs ও dependency caches restart/redeploy-এর পরে হারাতে পারে, অথবা directory write permission না থাকলে app শুরুই নাও হতে পারে।
 

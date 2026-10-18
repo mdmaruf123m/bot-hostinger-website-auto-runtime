@@ -14,6 +14,10 @@ import io
 from datetime import datetime
 from collections import defaultdict, deque
 
+from dotenv import load_dotenv
+
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+
 from flask import Flask, render_template, render_template_string, request, redirect, url_for, session, jsonify, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 from shared_dependencies import prepare_python, prepare_node, prepare_php
