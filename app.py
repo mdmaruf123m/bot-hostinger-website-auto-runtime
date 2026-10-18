@@ -733,6 +733,26 @@ def start_app_process(user, name, db):
     processes[key] = proc
     proc_meta[key] = {"device": device, "started": time.time(), "restarts": proc_meta.get(key, {}).get("restarts", 0)}
 
+    # Catch syntax/runtime failures that exit immediately so the dashboard does
+    # not claim a crashed bot was successfully started.
+    time.sleep(0.35)
+    exit_code = proc.poll()
+    if exit_code is not None:
+        processes.pop(key, None)
+        proc_meta.pop(key, None)
+        db.get("start_times", {}).pop(app_settings_key(user, name), None)
+        save_db(db)
+        try:
+            with open(log_path, "r", encoding="utf-8", errors="ignore") as log_file:
+                tail = log_file.read()[-1200:].strip()
+        except OSError:
+            tail = ""
+        append_log(log_path, f"[{datetime.now()}] Process exited immediately with code {exit_code}.\n")
+        message = f"Bot stopped immediately (exit code {exit_code}). Check Logs for the error."
+        if tail:
+            message += "\n" + tail[-700:]
+        return {"ok": False, "error": message}
+
     now_ms = int(time.time() * 1000)
     db["start_times"][app_settings_key(user, name)] = now_ms
     settings["offline_at"] = 0
