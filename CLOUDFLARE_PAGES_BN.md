@@ -27,3 +27,10 @@
 - `BACKEND_ORIGIN` সঠিক ও অনলাইন না থাকলে dashboard দেখাবে যে BotKeep backend অনুপলব্ধ।
 - Cloudflare Pages শুধুমাত্র static UI ও proxy চালায়। BotKeep বন্ধ থাকলে বা তার persistent storage/processes না থাকলে bot চলবে না।
 - এই setup-এ Flask-এর signed session cookie HTTPS-এ `Secure`, `HttpOnly` এবং `SameSite=Lax` হিসেবে ব্যবহৃত হয়।
+
+## নতুন Firebase project সেটআপ (`bot-36914`)
+
+- Firebase Console → **Authentication → Sign-in method**-এ **Email/Password** provider চালু করুন।
+- Authentication → **Settings → Authorized domains**-এ Pages-এর `*.pages.dev` hostname যোগ করুন।
+- Firestore Database-এ `users/{uid}` profile পড়া/লেখার জন্য owner-only rule রাখুন, যেমন `request.auth != null && request.auth.uid == uid`। Registration backend session handoff-এর সময় profile তৈরি/সিঙ্ক করে; client থেকে আলাদা duplicate write করা হয় না।
+- private `admin.html` নতুন Firebase project-এর সঙ্গে যুক্ত করা হয়েছে, কিন্তু তার Firestore list/block/delete কার্যক্রম Security Rules-এর অনুমতির ওপর নির্ভর করবে। Client-side password gate Firestore Security Rules-এর বিকল্প নয়।

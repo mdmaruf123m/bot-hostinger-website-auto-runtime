@@ -26,13 +26,12 @@ from shared_dependencies import prepare_python, prepare_node, prepare_php
 
 # Firebase Web configuration is public client configuration, not a service-account key.
 FIREBASE_WEB_CONFIG = {
-    "apiKey": "AIzaSyDyfJQlCeLCUf09DSJxwYKoIEMfJ0-AOMY",
-    "authDomain": "email-b10d2.firebaseapp.com",
-    "databaseURL": "https://email-b10d2-default-rtdb.firebaseio.com",
-    "projectId": "email-b10d2",
-    "storageBucket": "email-b10d2.firebasestorage.app",
-    "messagingSenderId": "244667224878",
-    "appId": "1:244667224878:web:76076f744928ab505ce0bf",
+    "apiKey": "AIzaSyCaMi91Dp6s7ydrKMO4DwfWcJXMaViG_d4",
+    "authDomain": "bot-36914.firebaseapp.com",
+    "projectId": "bot-36914",
+    "storageBucket": "bot-36914.firebasestorage.app",
+    "messagingSenderId": "365558992881",
+    "appId": "1:365558992881:web:cb801e341311d54685be50",
 }
 
 # ============================================================
