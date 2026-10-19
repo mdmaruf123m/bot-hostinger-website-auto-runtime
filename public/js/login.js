@@ -30,7 +30,7 @@ async function enter(user) {
     };
     await ref.set(profile);
   }
-  location.replace("/dashboard.html");
+  location.replace("/dashboard");
 }
 form.onsubmit = async (e) => {
   e.preventDefault();

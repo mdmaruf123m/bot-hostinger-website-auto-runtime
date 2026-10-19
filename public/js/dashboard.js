@@ -26,7 +26,7 @@ async function api(path, options = {}) {
   }
   if (r.status === 401) {
     await auth.signOut().catch(() => {});
-    location.href = "/login.html";
+    location.href = "/login";
     throw Error("Your panel session expired. Please log in again.");
   }
   if (!r.ok) throw Error(data.error || "Request failed (" + r.status + ")");

@@ -17,7 +17,7 @@
       '<svg class="menu-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>',
   };
   if (mount) {
-    mount.innerHTML = `<header class="bar"><span class="brand-left"><span class="brand-glyph">${svg.brand}</span><b id="userName">Loading…</b></span><button class="menu-toggle" id="menuBtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="accountDrawer"><span></span><span></span><span></span></button></header><div class="drawer-backdrop" id="menuOverlay" hidden><aside class="account-drawer" id="accountDrawer" aria-label="Account menu" aria-hidden="true"><div class="drawer-head"><span class="drawer-kicker">MY ACCOUNT</span><button class="drawer-close" id="menuClose" type="button" aria-label="Close menu">&times;</button></div><section class="profile-card"><div class="profile-avatar" id="profileAvatar">U</div><div class="profile-copy"><b id="profileName">Loading…</b><span id="profileEmail">Loading account</span></div><span class="profile-status"><i></i> Online</span></section><nav class="drawer-nav" aria-label="Main menu"><a class="menu-item" data-page="dashboard.html" href="/dashboard.html"><span class="menu-icon">${svg.dashboard}</span><span>Dashboard</span>${svg.chevron}</a><a class="menu-item" data-page="plan.html" href="/plan.html"><span class="menu-icon">${svg.plans}</span><span>Plans</span>${svg.chevron}</a><a class="menu-item" data-page="settings.html" href="/settings.html"><span class="menu-icon">${svg.settings}</span><span>Settings</span>${svg.chevron}</a></nav><div class="drawer-footer"><div class="drawer-divider"></div><button class="menu-signout" id="logout" type="button"><span class="menu-icon">${svg.logout}</span><span>Sign out</span></button><small>Secure account menu</small></div></aside></div>`;
+    mount.innerHTML = `<header class="bar"><span class="brand-left"><span class="brand-glyph">${svg.brand}</span><b id="userName">Loading…</b></span><button class="menu-toggle" id="menuBtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="accountDrawer"><span></span><span></span><span></span></button></header><div class="drawer-backdrop" id="menuOverlay" hidden><aside class="account-drawer" id="accountDrawer" aria-label="Account menu" aria-hidden="true"><div class="drawer-head"><span class="drawer-kicker">MY ACCOUNT</span><button class="drawer-close" id="menuClose" type="button" aria-label="Close menu">&times;</button></div><section class="profile-card"><div class="profile-avatar" id="profileAvatar">U</div><div class="profile-copy"><b id="profileName">Loading…</b><span id="profileEmail">Loading account</span></div><span class="profile-status"><i></i> Online</span></section><nav class="drawer-nav" aria-label="Main menu"><a class="menu-item" data-page="dashboard.html" href="/dashboard"><span class="menu-icon">${svg.dashboard}</span><span>Dashboard</span>${svg.chevron}</a><a class="menu-item" data-page="plan.html" href="/plan"><span class="menu-icon">${svg.plans}</span><span>Plans</span>${svg.chevron}</a><a class="menu-item" data-page="settings.html" href="/settings"><span class="menu-icon">${svg.settings}</span><span>Settings</span>${svg.chevron}</a></nav><div class="drawer-footer"><div class="drawer-divider"></div><button class="menu-signout" id="logout" type="button"><span class="menu-icon">${svg.logout}</span><span>Sign out</span></button><small>Secure account menu</small></div></aside></div>`;
     const current = location.pathname.split("/").pop() || "dashboard.html";
     mount
       .querySelectorAll(".menu-item")
@@ -83,7 +83,7 @@
         });
       } catch (_) {}
       await auth.signOut().catch(() => {});
-      location.replace("/login.html");
+      location.replace("/login");
     });
   }
   window.updateProfileCard = (user) => {
@@ -101,7 +101,7 @@
   };
   auth.onAuthStateChanged((user) => {
     if (!user) {
-      location.replace("/login.html");
+      location.replace("/login");
       return;
     }
     window.updateProfileCard(user);
