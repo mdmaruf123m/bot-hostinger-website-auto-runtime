@@ -153,7 +153,7 @@
     const safeUrl = (value) => { try { const u = new URL(value); return u.protocol === 'https:' ? u.href : ''; } catch (_) { return ''; } };
 
     function navigate(page) {
-      const valid = ['dashboard','plans','orders','methods','settings'].includes(page) ? page : 'dashboard';
+      const valid = ['dashboard','plans','orders','methods','users','settings'].includes(page) ? page : 'dashboard';
       document.querySelectorAll('.page').forEach((el) => el.classList.toggle('active', el.id === `page-${valid}`));
       document.querySelectorAll('.nav-btn').forEach((el) => el.classList.toggle('active', el.dataset.page === valid));
       const titles = { dashboard: ['Dashboard','Subscription and payment operations at a glance.'], plans: ['Packages','Manage plan pricing, quotas, and duration.'], orders: ['Order Requests','Review and process subscription payments.'], methods: ['Payment Methods','Manage the payment options available to users.'], users: ['User Management','Manage profiles, packages, access, and support sessions.'], settings: ['Settings','Configure image uploads and hosting preferences.'] };
