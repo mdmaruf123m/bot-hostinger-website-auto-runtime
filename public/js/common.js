@@ -99,10 +99,51 @@
     if (avatar)
       avatar.textContent = label.trim().charAt(0).toUpperCase() || "U";
   };
-  auth.onAuthStateChanged((user) => {
+  async function ensureDefaultFreePlan(user) {
+    const db = window.panelDb;
+    const userRef = db.collection("users").doc(user.uid);
+    const profileSnap = await userRef.get();
+    const profile = profileSnap.exists ? profileSnap.data() : {};
+    if (profile.activePlanId || profile.planId || profile.plan) return;
+    const billingSnap = await db.collection("admin_config").doc("billing").get();
+    const freeId = billingSnap.exists ? billingSnap.data().defaultFreePlanId : "";
+    if (!freeId) return;
+    const planSnap = await db.collection("plans").doc(freeId).get();
+    if (!planSnap.exists) return;
+    const plan = planSnap.data();
+    const start = new Date();
+    let expiry = null;
+    const unit = String(plan.durationUnit || "lifetime").toLowerCase();
+    const amount = Math.max(1, Math.floor(Number(plan.durationValue) || 1));
+    if (unit === "days") { expiry = new Date(start); expiry.setDate(expiry.getDate() + amount); }
+    else if (unit === "months") { expiry = new Date(start); expiry.setMonth(expiry.getMonth() + amount); }
+    else if (unit === "years") { expiry = new Date(start); expiry.setFullYear(expiry.getFullYear() + amount); }
+    await db.runTransaction(async (tx) => {
+      const latest = await tx.get(userRef);
+      const latestData = latest.exists ? latest.data() : {};
+      if (latestData.activePlanId || latestData.planId || latestData.plan) return;
+      tx.set(userRef, {
+        activePlanId: freeId,
+        activePlanName: plan.name || "Free package",
+        planStatus: "active",
+        planStartedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        planExpiresAt: expiry ? firebase.firestore.Timestamp.fromDate(expiry) : null,
+        maxBots: Number(plan.maxBots) || 0,
+        ramGiB: Number(plan.ramGiB) || 0,
+        storageGiB: Number(plan.storageGiB) || 0,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+    });
+  }
+  auth.onAuthStateChanged(async (user) => {
     if (!user) {
       location.replace("/login");
       return;
+    }
+    try {
+      await ensureDefaultFreePlan(user);
+    } catch (_) {
+      // Billing setup or Firestore permissions should not block account access.
     }
     window.updateProfileCard(user);
     window.dispatchEvent(
