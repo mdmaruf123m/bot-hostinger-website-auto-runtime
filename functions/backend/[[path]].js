@@ -1,6 +1,6 @@
 const FIREBASE_PROJECT_ID = "bot-36914";
 const FIREBASE_API_KEY = "AIzaSyCaMi91Dp6s7ydrKMO4DwfWcJXMaViG_d4";
-const CONFIG_DOCUMENT = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/users/__panel_config__?key=${FIREBASE_API_KEY}`;
+const CONFIG_DOCUMENT = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/users/panel_config?key=${FIREBASE_API_KEY}`;
 
 function validateOrigin(value) {
   if (typeof value !== "string" || !value.trim()) return null;
@@ -31,12 +31,12 @@ async function firestoreOrigin(env, request) {
   const response = await fetch(CONFIG_DOCUMENT, { headers: { accept: "application/json" } });
   if (!response.ok) {
     if (env.BACKEND_ORIGIN) return validateOrigin(env.BACKEND_ORIGIN);
-    throw new Error(`Could not read Firestore document users/__panel_config__ (HTTP ${response.status}). Check the existing users collection read rule.`);
+    throw new Error(`Could not read Firestore document users/panel_config (HTTP ${response.status}). Check the existing users collection read rule.`);
   }
   const doc = await response.json();
   const value = doc.fields?.backendOrigin?.stringValue;
   const origin = validateOrigin(value);
-  if (!origin) throw new Error("Firestore users/__panel_config__ must contain an HTTPS backendOrigin field, such as https://your-app.onrender.com");
+  if (!origin) throw new Error("Firestore users/panel_config must contain an HTTPS backendOrigin field, such as https://your-app.onrender.com");
   if (cache) {
     try {
       await cache.put(cacheKey, Response.json({ origin }, { headers: { "cache-control": "public, max-age=20" } }));

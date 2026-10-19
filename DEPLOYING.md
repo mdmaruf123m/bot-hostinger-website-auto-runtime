@@ -31,7 +31,7 @@ The dependency manager and executable must exist in the hosting image. The inclu
 
 The Pages UI uses separate `/login/` and `/register/` pages backed by Firebase Email/Password Authentication. Auth and `users/{uid}` profile reads/writes happen directly in the browser with Firebase's Web SDK. The bot backend verifies the signed Firebase ID token locally against Google's public signing keys and does not call Firebase Auth or Firestore profile APIs. Keep a stable Flask `SECRET_KEY` in the hosting provider's environment so panel sessions survive restarts.
 
-The private `admin.html` is delivered separately and is not part of the repository. It manages Firestore profile documents and the selected bot backend origin stored in the reserved `users/__panel_config__` document. Its password gate is client-side, and it cannot list or delete Firebase Authentication accounts. Firestore operations depend on the project's Security Rules; this code does not change those rules. Users with a `Blocked` profile are rejected in the browser on the next sign-in.
+The private `admin.html` is delivered separately and is not part of the repository. It manages Firestore profile documents and the selected bot backend origin stored in the configuration `users/panel_config` document. Its password gate is client-side, and it cannot list or delete Firebase Authentication accounts. Firestore operations depend on the project's Security Rules; this code does not change those rules. Users with a `Blocked` profile are rejected in the browser on the next sign-in.
 
 ## Cloudflare Pages user interface with a selectable bot backend
 

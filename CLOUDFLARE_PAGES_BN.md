@@ -18,9 +18,9 @@ BotKeep container-এ Node.js/npm বা PHP CLI আগে থেকে না �
    - Build output directory: `public`
    - Root directory: repository root
 4. Pages project-এ static frontend-এর সঙ্গে `functions/backend/[[path]].js` deploy হয়েছে কি না নিশ্চিত করুন।
-5. Private `admin.html` খুলে **Bot hosting backend**-এ আপনার Render/BotKeep/অন্য host-এর live HTTPS origin দিন, যেমন `https://your-service.onrender.com` বা BotKeep-এর HTTPS domain। শুধু origin দিন—path, query বা শেষে API route নয়। Save করলে এটি Firebase Firestore-এর `users/__panel_config__` document-এর `backendOrigin` field-এ থাকবে।
+5. Private `admin.html` খুলে **Bot hosting backend**-এ আপনার Render/BotKeep/অন্য host-এর live HTTPS origin দিন, যেমন `https://your-service.onrender.com` বা BotKeep-এর HTTPS domain। শুধু origin দিন—path, query বা শেষে API route নয়। Save করলে এটি Firebase Firestore-এর `users/panel_config` document-এর `backendOrigin` field-এ থাকবে।
 6. Pages Function প্রতিটি `/backend/*` request-এর জন্য ওই Firestore setting পড়ে এবং বেছে নেওয়া backend-এ proxy করে; সেটি অল্প সময় cache হয়। তাই backend পাল্টাতে code edit বা GitHub redeploy লাগবে না।
-7. Firebase Console → Authentication → Settings → Authorized domains-এ আপনার Pages hostname যোগ করুন, যেমন `your-project.pages.dev`। Firestore-এ `users` collection-এর existing Firestore Rules দিয়ে `__panel_config__` document read ও private admin write করতে দিন; admin panel user list-এ এই reserved system document দেখাবে না।
+7. Firebase Console → Authentication → Settings → Authorized domains-এ আপনার Pages hostname যোগ করুন, যেমন `your-project.pages.dev`। Firestore-এ `users` collection-এর existing Firestore Rules দিয়ে `panel_config` document read ও private admin write করতে দিন; admin panel user list-এ এই system configuration document দেখাবে না।
 
 ## HTTPS backend আবশ্যক
 
@@ -29,7 +29,7 @@ BotKeep-এর plain HTTP port-এ Pages proxy পাঠানো যাবে �
 ## সীমা ও আচরণ
 
 - Cloudflare Free plan-এ Worker/Pages Function দিয়ে পাঠানো request body-এর সীমা সাধারণত 100 MB; তাই Pages দিয়ে ZIP upload 100 MB বা কম রাখুন। BotKeep Flask-এ সরাসরি upload ceiling 200 MB থাকলেও Cloudflare proxy-এর সীমাই কার্যকর হবে।
-- `users/__panel_config__.backendOrigin` সঠিক HTTPS origin না থাকলে proxy 503 দেবে; backend unreachable হলে dashboard-এ error দেখা যাবে।
+- `users/panel_config.backendOrigin` সঠিক HTTPS origin না থাকলে proxy 503 দেবে; backend unreachable হলে dashboard-এ error দেখা যাবে।
 - Cloudflare Pages static UI ও proxy চালায়। Render/BotKeep/নির্বাচিত service-এ bot runner backend deploy থাকতে হবে; শুধু URL পাল্টালে bots/files এক host থেকে অন্য host-এ migrate বা copy হয় না।
 - এই setup-এ Flask-এর signed session cookie HTTPS-এ `Secure`, `HttpOnly` এবং `SameSite=Lax` হিসেবে ব্যবহৃত হয়।
 
@@ -37,7 +37,7 @@ BotKeep-এর plain HTTP port-এ Pages proxy পাঠানো যাবে �
 
 - Firebase Console → **Authentication → Sign-in method**-এ **Email/Password** provider চালু করুন।
 - Authentication → **Settings → Authorized domains**-এ Pages-এর `*.pages.dev` hostname যোগ করুন।
-- Firestore Database-এ login/register flow-এর জন্য signed-in user যেন নিজের `users/{uid}` profile read/write করতে পারে, সেটি নিশ্চিত করুন। Registration browser থেকেই profile তৈরি/সিঙ্ক করে; bot backend Firebase profile API চালায় না। Admin panel-এর বিদ্যমান user-management rules এবং `users/__panel_config__` setting document-এর read/write permission-ও বজায় রাখুন।
+- Firestore Database-এ login/register flow-এর জন্য signed-in user যেন নিজের `users/{uid}` profile read/write করতে পারে, সেটি নিশ্চিত করুন। Registration browser থেকেই profile তৈরি/সিঙ্ক করে; bot backend Firebase profile API চালায় না। Admin panel-এর বিদ্যমান user-management rules এবং `users/panel_config` setting document-এর read/write permission-ও বজায় রাখুন।
 - private `admin.html` নতুন Firebase project-এর সঙ্গে যুক্ত করা হয়েছে, কিন্তু তার Firestore list/block/delete কার্যক্রম Security Rules-এর অনুমতির ওপর নির্ভর করবে। Client-side password gate Firestore Security Rules-এর বিকল্প নয়।
 
 
