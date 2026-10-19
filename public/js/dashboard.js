@@ -94,7 +94,7 @@ function renderApps() {
     ? items
         .map(
           (a) =>
-            `<article class="card"><div class="top"><span class="name">${esc(a.name)}</span><span class="pill ${a.running ? "" : "off"}">${a.running ? "RUNNING" : "OFFLINE"}</span></div><div class="meta"><span>${esc(a.device || "—")}</span>${a.running ? `<span>Runs for ${esc(a.remaining_run_min)}m</span>` : ""}</div><div class="toggles"><label><input type="checkbox" ${a.auto_on ? "checked" : ""} onchange="toggle('${esc(a.name)}','auto_on',this)"> Auto-On</label><label><input type="checkbox" ${a.auto_restart ? "checked" : ""} onchange="toggle('${esc(a.name)}','auto_restart',this)"> Auto-Restart</label></div><div class="actions">${a.running ? `<button class="btn danger" onclick="stopApp('${esc(a.name)}')"><i class="fa-solid fa-stop"></i> Stop</button><button class="btn outline" onclick="restartApp('${esc(a.name)}')"><i class="fa-solid fa-rotate-right"></i> Restart</button>` : `<button class="btn" onclick="runApp('${esc(a.name)}')"><i class="fa-solid fa-play"></i> Run</button><button class="btn outline" onclick="validateApp('${esc(a.name)}')"><i class="fa-solid fa-circle-check"></i> Validate</button>`}<button class="btn outline" onclick="showLogs('${esc(a.name)}')"><i class="fa-solid fa-terminal"></i> Logs</button><button class="btn outline" onclick="showFiles('${esc(a.name)}')"><i class="fa-solid fa-folder-open"></i> Files</button><button class="btn outline" onclick="editEnvironment('${esc(a.name)}')"><i class="fa-solid fa-key"></i> Env Vars</button><a class="btn outline" href="/backend/download/${encodeURIComponent(a.name)}"><i class="fa-solid fa-download"></i> Download</a><button class="btn outline" onclick="publicLink('${esc(a.name)}')"><i class="fa-solid fa-link"></i> Public Link</button><button class="btn danger" onclick="deleteApp('${esc(a.name)}')"><i class="fa-solid fa-trash"></i> Delete</button></div></article>`,
+            `<article class="card"><div class="top"><span class="name">${esc(a.name)}</span><span class="pill ${a.running ? "" : "off"}">${a.running ? "RUNNING" : "OFFLINE"}</span></div><div class="meta"><span>${esc(a.device || "—")}</span>${a.running ? `<span>Runs for ${esc(a.remaining_run_min)}m</span>` : ""}</div><div class="actions">${a.running ? `<button class="btn danger" onclick="stopApp('${esc(a.name)}')"><i class="fa-solid fa-stop"></i> Stop</button><button class="btn outline" onclick="restartApp('${esc(a.name)}')"><i class="fa-solid fa-rotate-right"></i> Restart</button>` : `<button class="btn" onclick="runApp('${esc(a.name)}')"><i class="fa-solid fa-play"></i> Run</button><button class="btn outline" onclick="validateApp('${esc(a.name)}')"><i class="fa-solid fa-circle-check"></i> Validate</button>`}<button class="btn outline" onclick="showLogs('${esc(a.name)}')"><i class="fa-solid fa-terminal"></i> Logs</button><button class="btn outline" onclick="showFiles('${esc(a.name)}')"><i class="fa-solid fa-folder-open"></i> Files</button><button class="btn outline" onclick="editEnvironment('${esc(a.name)}')"><i class="fa-solid fa-key"></i> Env Vars</button><a class="btn outline" href="/backend/download/${encodeURIComponent(a.name)}"><i class="fa-solid fa-download"></i> Download</a><button class="btn outline" onclick="publicLink('${esc(a.name)}')"><i class="fa-solid fa-link"></i> Public Link</button><button class="btn danger" onclick="deleteApp('${esc(a.name)}')"><i class="fa-solid fa-trash"></i> Delete</button></div></article>`,
         )
         .join("")
     : '<div class="empty">No apps match your search, or no bots have been uploaded yet.</div>';
@@ -197,17 +197,6 @@ async function restartApp(n) {
     Swal.fire("Failed", e.message, "error");
   }
 }
-async function toggle(n, f, el) {
-  try {
-    const { data } = await api("toggle_" + f + "/" + encodeURIComponent(n), {
-      method: "POST",
-    });
-    if (!data.ok) throw Error("Unable to save setting");
-  } catch (e) {
-    el.checked = !el.checked;
-    Swal.fire("Error", e.message, "error");
-  }
-}
 async function validateApp(n) {
   showModal("Validation · " + n, "Checking…");
   try {
@@ -232,6 +221,15 @@ async function validateApp(n) {
   }
 }
 function showModal(t, html) {
+  if (logTimer) {
+    clearInterval(logTimer);
+    logTimer = null;
+  }
+  const copyButton = document.getElementById("copyLogBtn");
+  copyButton.hidden = true;
+  copyButton.disabled = true;
+  copyButton.classList.remove("is-copied");
+  copyButton.querySelector(".copy-label").textContent = "Copy logs";
   document.getElementById("modalTitle").textContent = t;
   document.getElementById("modalBody").innerHTML = html;
   document.getElementById("modal").style.display = "flex";
@@ -239,6 +237,8 @@ function showModal(t, html) {
 function closeModal() {
   document.getElementById("modal").style.display = "none";
   if (logTimer) clearInterval(logTimer);
+  logTimer = null;
+  document.getElementById("copyLogBtn").hidden = true;
 }
 async function editEnvironment(n) {
   currentProject = n;
@@ -308,8 +308,46 @@ async function deleteEnvironment(name) {
     Swal.fire("Error", e.message, "error");
   }
 }
+async function copyCurrentLog() {
+  const log = document.getElementById("logContent")?.textContent || "";
+  if (!log || log === "Loading…") return;
+  const button = document.getElementById("copyLogBtn");
+  const label = button.querySelector(".copy-label");
+  try {
+    let copied = false;
+    if (window.isSecureContext && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(log);
+        copied = true;
+      } catch (_) {}
+    }
+    if (!copied) {
+      const helper = document.createElement("textarea");
+      helper.className = "clipboard-helper";
+      helper.value = log;
+      document.body.appendChild(helper);
+      helper.focus();
+      helper.select();
+      const copied = document.execCommand("copy");
+      helper.remove();
+      if (!copied) throw new Error("Clipboard access was denied.");
+    }
+    button.classList.add("is-copied");
+    label.textContent = "Copied";
+    window.setTimeout(() => {
+      label.textContent = "Copy logs";
+      button.classList.remove("is-copied");
+    }, 1600);
+  } catch (error) {
+    label.textContent = "Copy failed";
+    window.setTimeout(() => (label.textContent = "Copy logs"), 1800);
+  }
+}
 async function showLogs(n) {
   showModal("Logs · " + n, '<pre class="log" id="logContent">Loading…</pre>');
+  const copyButton = document.getElementById("copyLogBtn");
+  copyButton.hidden = false;
+  copyButton.disabled = true;
   async function refresh() {
     try {
       const { data } = await api("get_log/" + encodeURIComponent(n));
@@ -318,10 +356,11 @@ async function showLogs(n) {
     } catch (e) {
       const el = document.getElementById("logContent");
       if (el) el.textContent = e.message;
+    } finally {
+      copyButton.disabled = false;
     }
   }
   await refresh();
-  if (logTimer) clearInterval(logTimer);
   logTimer = setInterval(refresh, 3000);
 }
 async function publicLink(n) {
@@ -417,3 +456,5 @@ document
   .getElementById("chooseZip")
   .addEventListener("click", () => document.getElementById("zip").click());
 document.getElementById("modalClose").addEventListener("click", closeModal);
+
+document.getElementById("copyLogBtn").addEventListener("click", copyCurrentLog);

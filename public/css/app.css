@@ -232,6 +232,69 @@ body {
 .modal-head h3 {
   margin: 0;
 }
+.modal-tools {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-left: auto;
+}
+.copy-log {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid #716aff66;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #26205d, #100d30);
+  color: #e9e6ff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px #ffffff1c,
+    0 5px 12px #03001455;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    transform 0.16s ease;
+}
+.copy-log svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.copy-log:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: #aaa4ff;
+  background: linear-gradient(145deg, #39317f, #171144);
+}
+.copy-log:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.copy-log[hidden] {
+  display: none;
+}
+.copy-log.is-copied {
+  border-color: #50d5a0;
+  color: #a8f1d6;
+}
+.clipboard-helper {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
 .x {
   cursor: pointer;
   color: var(--danger);
@@ -908,6 +971,7 @@ body:before {
   border-radius: 14px;
   background: transparent;
   color: #dad7f2;
+  text-decoration: none;
   text-align: left;
   font: inherit;
   font-weight: 700;

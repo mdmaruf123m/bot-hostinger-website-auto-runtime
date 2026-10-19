@@ -67,14 +67,33 @@
       <section class="modal">
         <div class="modal-head">
           <h3 id="modalTitle"></h3>
-          <button
-            class="x"
-            id="modalClose"
-            type="button"
-            aria-label="Close dialog"
-          >
-            &times;
-          </button>
+          <div class="modal-tools">
+            <button
+              class="copy-log"
+              id="copyLogBtn"
+              type="button"
+              aria-label="Copy entire log"
+              title="Copy entire log"
+              hidden
+              disabled
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="4" y="8" width="12" height="12" rx="2" />
+                <path
+                  d="M8 8V5.75A1.75 1.75 0 0 1 9.75 4h8.5A1.75 1.75 0 0 1 20 5.75v8.5A1.75 1.75 0 0 1 18.25 16H16"
+                />
+              </svg>
+              <span class="copy-label">Copy logs</span>
+            </button>
+            <button
+              class="x"
+              id="modalClose"
+              type="button"
+              aria-label="Close dialog"
+            >
+              &times;
+            </button>
+          </div>
         </div>
         <div id="modalBody" class="modal-body"></div>
       </section>
