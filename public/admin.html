@@ -30,10 +30,11 @@
     <form id="gateForm" class="gate-card">
       <div class="brand-mark">B</div>
       <h1>Private Admin Console</h1>
-      <p>Enter your admin password to continue.</p>
-      <input id="gatePassword" class="field" type="password" autocomplete="off" placeholder="Admin password" aria-label="Admin password">
-      <button class="btn" style="width:100%;margin-top:12px" type="submit">Unlock dashboard</button>
-      <div id="gateError" class="modal-error hidden">Incorrect password.</div>
+      <p>Sign in with an authorized administrator account.</p>
+      <input id="gateEmail" class="field" type="email" autocomplete="username" placeholder="Admin email" aria-label="Admin email" required>
+      <input id="gatePassword" class="field" type="password" autocomplete="current-password" placeholder="Password" aria-label="Admin password" required>
+      <button class="btn" style="width:100%;margin-top:12px" type="submit">Sign in</button>
+      <div id="gateError" class="modal-error hidden"></div>
     </form>
   </section>
 
@@ -103,10 +104,10 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script>
-    // This private file uses the existing Firebase Web configuration. It is not an Admin SDK key.
-    const ADMIN_PASS = '11223344';
+    // Authorization is enforced by Firebase Auth plus admins/{uid}.role rules.
     const firebaseConfig = {
       apiKey: 'AIzaSyCaMi91Dp6s7ydrKMO4DwfWcJXMaViG_d4',
       authDomain: 'bot-36914.firebaseapp.com',
@@ -116,6 +117,7 @@
       appId: '1:365558992881:web:cb801e341311d54685be50'
     };
     firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
     const db = firebase.firestore();
     const C = { plans: 'plans', methods: 'payment_methods', orders: 'order_requests', users: 'users', config: 'admin_config' };
     const KEY_NAME = 'botlova_imgbb_api_key';
@@ -356,9 +358,24 @@
       $('gate').classList.add('hidden'); $('appShell').classList.remove('hidden'); startListeners();
       if(localStorage.getItem(KEY_NAME)) $('imgbbKey').value=localStorage.getItem(KEY_NAME);
     }
-    function lockPanel() { releaseListeners(); $('appShell').classList.add('hidden'); $('gate').classList.remove('hidden'); $('gatePassword').value=''; sessionStorage.removeItem('botlova_admin_open'); }
+    function lockPanel() { releaseListeners(); $('appShell').classList.add('hidden'); $('gate').classList.remove('hidden'); $('gatePassword').value=''; auth.signOut().catch(()=>{}); }
 
-    $('gateForm').addEventListener('submit',(event)=>{event.preventDefault();if($('gatePassword').value===ADMIN_PASS){$('gateError').classList.add('hidden');sessionStorage.setItem('botlova_admin_open','1');startPanel();}else{$('gateError').classList.remove('hidden');$('gatePassword').value='';$('gatePassword').focus();}});
+    async function isAdmin(user) {
+      if (!user) return false;
+      const snap = await db.collection('admins').doc(user.uid).get();
+      return snap.exists && String(snap.data().role || '').toLowerCase() === 'admin';
+    }
+    $('gateForm').addEventListener('submit',async(event)=>{
+      event.preventDefault();
+      const button=event.currentTarget.querySelector('button[type="submit"]'); const error=$('gateError');
+      error.classList.add('hidden'); button.disabled=true; button.textContent='Signing in…';
+      try {
+        const credential=await auth.signInWithEmailAndPassword($('gateEmail').value.trim(),$('gatePassword').value);
+        if(!await isAdmin(credential.user)) { await auth.signOut(); throw new Error('This account is not authorized as an administrator.'); }
+        startPanel();
+      } catch (err) { error.textContent=err.message || 'Admin sign-in failed.'; error.classList.remove('hidden'); $('gatePassword').value=''; }
+      finally { button.disabled=false; button.textContent='Sign in'; }
+    });
     document.querySelectorAll('.nav-btn').forEach((button)=>button.addEventListener('click',()=>navigate(button.dataset.page)));
     document.querySelectorAll('[data-go]').forEach((button)=>button.addEventListener('click',()=>navigate(button.dataset.go)));
     $('settingsButton').addEventListener('click',()=>navigate('settings')); $('lockButton').addEventListener('click',lockPanel);
@@ -373,7 +390,12 @@
     $('clearImgbbKey').addEventListener('click',()=>{localStorage.removeItem(KEY_NAME);$('imgbbKey').value='';toast('ImgBB key removed from this browser.');}); $('saveBackend').addEventListener('click',saveBackend);
     document.addEventListener('click',(event)=>{const button=event.target.closest('[data-action="new-plan"],[data-action="new-method"]');if(!button)return;if(button.dataset.action==='new-plan')openPlanForm();else openMethodForm();});
     document.addEventListener('click',(event)=>{const close=event.target.closest('[data-close]');if(close)closeModal();});
-    if(sessionStorage.getItem('botlova_admin_open')==='1')startPanel();
+    auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(()=>{});
+    auth.onAuthStateChanged(async(user)=>{
+      if(!user || !$('appShell').classList.contains('hidden')) return;
+      try { if(await isAdmin(user)) startPanel(); else await auth.signOut(); }
+      catch (_) { await auth.signOut().catch(()=>{}); }
+    });
   </script>
 </body>
 </html>

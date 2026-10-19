@@ -1,0 +1,77 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // Admin membership is provisioned out-of-band. It cannot be created or
+    // changed from the client, preventing self-escalation.
+    match /admins/{uid} {
+      allow read: if isAdmin() || isOwner(uid);
+      allow create, update, delete: if false;
+    }
+
+    match /users/{uid} {
+      allow read: if isAdmin() || isOwner(uid);
+      allow create: if isOwner(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.keys().hasOnly([
+          'uid', 'email', 'name', 'status', 'createdAt'
+        ]);
+      // Account owners may update profile-only fields. Package, status and
+      // backend configuration fields are admin-only and cannot be forged.
+      allow update: if isAdmin() || (
+        isOwner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'email', 'name'
+        ])
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /plans/{planId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /payment_methods/{methodId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /order_requests/{orderId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.keys().hasOnly([
+          'uid', 'userId', 'userEmail', 'userName', 'planId', 'planName',
+          'amount', 'currency', 'methodId', 'methodName', 'methodNumber',
+          'transactionId', 'status', 'createdAt', 'updatedAt'
+        ]);
+      allow update, delete: if isAdmin();
+    }
+
+    match /admin_config/{configId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Deny every collection not explicitly listed above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
