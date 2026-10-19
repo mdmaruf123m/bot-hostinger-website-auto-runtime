@@ -12,6 +12,9 @@ import threading
 import resource
 import py_compile
 import io
+import urllib.error
+import urllib.parse
+import urllib.request
 from datetime import datetime, timedelta
 from collections import defaultdict, deque
 from cryptography.fernet import Fernet, InvalidToken
@@ -34,6 +37,11 @@ FIREBASE_WEB_CONFIG = {
     "messagingSenderId": "365558992881",
     "appId": "1:365558992881:web:cb801e341311d54685be50",
 }
+
+FIRESTORE_USER_DOCUMENT = (
+    "https://firestore.googleapis.com/v1/projects/"
+    f"{FIREBASE_WEB_CONFIG['projectId']}/databases/(default)/documents/users/"
+)
 
 # ============================================================
 # APP SETUP
@@ -1137,6 +1145,45 @@ def verify_firebase_id_token(id_token):
     return {"uid": uid, "email": email, "name": claims.get("name") or email.split("@", 1)[0]}
 
 
+def _firestore_value(field):
+    """Decode the Firestore REST values used by account package limits."""
+    if not isinstance(field, dict):
+        return None
+    for key in ("integerValue", "doubleValue", "stringValue", "booleanValue"):
+        if key in field:
+            value = field[key]
+            if key == "integerValue":
+                return int(value)
+            if key == "doubleValue":
+                return float(value)
+            return value
+    return None
+
+
+def get_server_plan_limits(uid, id_token):
+    """Read limits from users/{uid}; never trust limits supplied by the browser."""
+    url = FIRESTORE_USER_DOCUMENT + urllib.parse.quote(uid, safe="")
+    req = urllib.request.Request(
+        url,
+        headers={"Authorization": f"Bearer {id_token}", "Accept": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=8) as response:
+            document = json.loads(response.read().decode("utf-8"))
+    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, ValueError) as exc:
+        raise FirebaseAuthError("Could not read the account package limits from Firestore.") from exc
+
+    fields = document.get("fields") or {}
+    required = ("maxBots", "ramBytes", "storageBytes")
+    if not all(name in fields for name in required):
+        raise FirebaseAuthError("Your account does not have a configured package limit yet.")
+    return {
+        "maxBots": max(0, int(float(_firestore_value(fields["maxBots"]) or 0))),
+        "ramBytes": max(0, int(float(_firestore_value(fields["ramBytes"]) or 0))),
+        "storageBytes": max(0, int(float(_firestore_value(fields["storageBytes"]) or 0))),
+    }
+
+
 @app.route("/login", methods=["GET"])
 def login():
     if require_login():
@@ -1160,18 +1207,16 @@ def firebase_session():
     try:
         identity = verify_firebase_id_token(id_token)
         uid, email = identity["uid"], identity["email"]
+        # The verified Firestore profile is authoritative. Never accept a
+        # browser-supplied limits object because it can be modified by users.
+        limits = get_server_plan_limits(uid, id_token)
         session.clear()
         session.permanent = True
         session["username"] = email
         session["uid"] = uid
         session["user_folder"] = user_folder_id(email)
-        limits = body.get("limits") if isinstance(body.get("limits"), dict) else {}
-        session["plan_limits"] = {
-            "maxBots": max(0, int(float(limits.get("maxBots", 0) or 0))),
-            "ramBytes": max(0, int(float(limits.get("ramBytes", 0) or 0))),
-            "storageBytes": max(0, int(float(limits.get("storageBytes", 0) or 0))),
-        }
-        session["plan_limits_configured"] = all(key in limits for key in ("maxBots", "ramBytes", "storageBytes"))
+        session["plan_limits"] = limits
+        session["plan_limits_configured"] = True
         return jsonify({"ok": True, "redirect": url_for("index")})
     except FirebaseAuthError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 401
