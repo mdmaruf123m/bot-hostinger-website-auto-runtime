@@ -4,3 +4,4 @@ psutil>=5.9,<8
 gunicorn>=23,<24
 python-dotenv>=1,<2
 cryptography>=42,<51
+PyJWT[crypto]>=2.8,<3

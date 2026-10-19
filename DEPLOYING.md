@@ -29,13 +29,13 @@ The dependency manager and executable must exist in the hosting image. The inclu
 
 ## Firebase authentication
 
-The panel uses separate `/login` and `/register` pages backed by Firebase Email/Password Authentication. The Firebase Web configuration in `app.py` is public client configuration; Firestore Security Rules—not the web API key—control database access. New registrations create a `users/{uid}` profile document with the name, email, and status fields. Keep a stable Flask `SECRET_KEY` in the hosting provider's environment so user sessions survive restarts.
+The Pages UI uses separate `/login/` and `/register/` pages backed by Firebase Email/Password Authentication. Auth and `users/{uid}` profile reads/writes happen directly in the browser with Firebase's Web SDK. The bot backend verifies the signed Firebase ID token locally against Google's public signing keys and does not call Firebase Auth or Firestore profile APIs. Keep a stable Flask `SECRET_KEY` in the hosting provider's environment so panel sessions survive restarts.
 
-The private `admin.html` is delivered separately and is not part of the repository. It manages Firestore profile documents only. Its password gate is client-side, and it cannot list or delete Firebase Authentication accounts. Direct Firestore operations depend on the project's existing Security Rules; this code does not open or weaken those rules. A `Blocked` profile is rejected at the next Firebase-to-panel session exchange.
+The private `admin.html` is delivered separately and is not part of the repository. It manages Firestore profile documents and the selected bot backend origin stored in the reserved `users/__panel_config__` document. Its password gate is client-side, and it cannot list or delete Firebase Authentication accounts. Firestore operations depend on the project's Security Rules; this code does not change those rules. Users with a `Blocked` profile are rejected in the browser on the next sign-in.
 
-## Cloudflare Pages user interface with BotKeep backend
+## Cloudflare Pages user interface with a selectable bot backend
 
-The Pages-ready static UI and the one-time Git deployment/backend HTTPS setup are documented in [`CLOUDFLARE_PAGES_BN.md`](CLOUDFLARE_PAGES_BN.md). Pages serves the login, registration, and user dashboard; Flask and bot subprocesses continue running on BotKeep. Do not deploy the Flask runner as a Pages static site.
+The Pages-ready static UI and backend selection setup are documented in [`CLOUDFLARE_PAGES_BN.md`](CLOUDFLARE_PAGES_BN.md). Pages serves login, registration, and dashboard. The private admin changes the active HTTPS bot backend origin in Firestore; Pages proxies `/backend/*` to the selected Render/BotKeep/other Flask runner. Changing the URL does not migrate uploaded bots or data. Do not deploy Flask runner as a Pages static site.
 
 ## Storage and hosting
 

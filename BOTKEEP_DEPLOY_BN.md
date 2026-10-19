@@ -23,7 +23,7 @@ BotKeep container-এ Node.js/npm বা PHP CLI আগে থেকে না �
 5. Environment/Secrets-এ `SECRET_KEY` হিসেবে দীর্ঘ random value দিন। `DATA_DIR` দিলে BotKeep dashboard-এ দেখানো writable persistent path-টাই ব্যবহার করুন।
 6. Deploy করুন। Console-এ `venv`, `pip`, permission, package install বা storage error আছে কি না দেখুন। Panel খুলে `/register` থেকে Firebase account তৈরি করুন, তারপর `/login` দিয়ে প্রবেশ করুন।
 
-Firebase Email/Password Authentication এবং Firestore এই repo-তে সংযুক্ত আছে। Firebase Web configuration `app.py`-তে আছে; এটি public client configuration। Firestore-এর access Firebase Security Rules নিয়ন্ত্রণ করে। Register করা account-এর profile `users/{uid}`-এ রাখা হয়।
+Firebase Email/Password Authentication এবং Firestore browser থেকে সরাসরি Firebase-এর সঙ্গে কাজ করে; Firebase Auth/Firestore profile API BotKeep-এ চলে না। Profile `users/{uid}`-এ থাকে এবং Firestore Security Rules সেটি নিয়ন্ত্রণ করে। Bot runner backend শুধু Firebase ID token-এর signature Google-এর public key দিয়ে locally verify করে—Firebase user/profile API call করে না।
 
 **গুরুত্বপূর্ণ:** BotKeep-এর persistent storage path dashboard-এ আলাদা করে দেখানো থাকলে সেটিই `DATA_DIR` হিসেবে ব্যবহার করুন। Path নিশ্চিত না হলে সেটি আন্দাজ করে দেবেন না। Persistent writable storage না থাকলে uploaded bot files, logs ও dependency caches restart/redeploy-এর পরে হারাতে পারে, অথবা directory write permission না থাকলে app শুরুই নাও হতে পারে। Firebase user credentials local `database.json`-এ রাখা হয় না।
 

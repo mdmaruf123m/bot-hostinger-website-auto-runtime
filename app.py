@@ -13,12 +13,10 @@ import py_compile
 import io
 from datetime import datetime, timedelta
 from collections import defaultdict, deque
-from urllib.request import Request, urlopen
-from urllib.error import HTTPError, URLError
-from urllib.parse import quote
 from cryptography.fernet import Fernet, InvalidToken
 
 from dotenv import load_dotenv
+import jwt
 
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
@@ -1025,63 +1023,32 @@ class FirebaseAuthError(Exception):
     pass
 
 
-def firebase_identity_request(method, payload):
-    api_key = FIREBASE_WEB_CONFIG["apiKey"]
-    url = f"https://identitytoolkit.googleapis.com/v1/{method}?key={quote(api_key)}"
-    req = Request(url, data=json.dumps(payload).encode("utf-8"),
-                  headers={"Content-Type": "application/json"}, method="POST")
+FIREBASE_JWK_CLIENT = jwt.PyJWKClient(
+    "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com",
+    cache_keys=True,
+)
+
+
+def verify_firebase_id_token(id_token):
+    """Verify Firebase JWT locally using Google's public signing keys; never call Firebase APIs."""
+    project_id = FIREBASE_WEB_CONFIG["projectId"]
     try:
-        with urlopen(req, timeout=15) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except HTTPError as exc:
-        try:
-            detail = json.loads(exc.read().decode("utf-8"))
-            message = detail.get("error", {}).get("message", "Firebase request failed")
-        except Exception:
-            message = "Firebase request failed"
-        raise FirebaseAuthError(message) from exc
-    except (URLError, TimeoutError) as exc:
-        raise FirebaseAuthError("Could not connect to Firebase. Please try again.") from exc
-
-
-def _firestore_document_url(uid):
-    project = quote(FIREBASE_WEB_CONFIG["projectId"], safe="")
-    return (f"https://firestore.googleapis.com/v1/projects/{project}/databases/"
-            f"(default)/documents/users/{quote(uid, safe='')}")
-
-
-def firebase_get_profile(uid, id_token):
-    req = Request(_firestore_document_url(uid), headers={"Authorization": f"Bearer {id_token}"})
-    try:
-        with urlopen(req, timeout=12) as response:
-            doc = json.loads(response.read().decode("utf-8"))
-    except HTTPError as exc:
-        if exc.code == 404:
-            return None
-        raise FirebaseAuthError("Could not read the user's Firestore profile.") from exc
-    except (URLError, TimeoutError) as exc:
-        raise FirebaseAuthError("Could not connect to Firestore to read the user's profile.") from exc
-    fields = doc.get("fields", {})
-    return {key: value.get("stringValue", "") for key, value in fields.items()}
-
-
-def firebase_create_profile(uid, email, name, id_token):
-    payload = {"fields": {
-        "uid": {"stringValue": uid},
-        "email": {"stringValue": email},
-        "name": {"stringValue": name or email.split("@", 1)[0]},
-        "status": {"stringValue": "Active"},
-    }}
-    req = Request(_firestore_document_url(uid), data=json.dumps(payload).encode("utf-8"),
-                  headers={"Authorization": f"Bearer {id_token}", "Content-Type": "application/json"},
-                  method="PATCH")
-    try:
-        with urlopen(req, timeout=12):
-            return
-    except HTTPError as exc:
-        raise FirebaseAuthError("Firebase Auth succeeded, but Firestore could not save the user profile. Check Firestore rules.") from exc
-    except (URLError, TimeoutError) as exc:
-        raise FirebaseAuthError("Firebase Auth succeeded, but Firestore profile sync failed.") from exc
+        signing_key = FIREBASE_JWK_CLIENT.get_signing_key_from_jwt(id_token)
+        claims = jwt.decode(
+            id_token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=project_id,
+            issuer=f"https://securetoken.google.com/{project_id}",
+            options={"require": ["exp", "iat", "sub", "aud", "iss"]},
+        )
+    except Exception as exc:
+        raise FirebaseAuthError("Firebase session token is invalid or expired. Please sign in again.") from exc
+    uid = claims.get("sub", "")
+    email = str(claims.get("email", "")).strip().lower()
+    if not uid or len(uid) > 128 or not is_valid_email(email):
+        raise FirebaseAuthError("Firebase token did not contain a valid account identity.")
+    return {"uid": uid, "email": email, "name": claims.get("name") or email.split("@", 1)[0]}
 
 
 @app.route("/login", methods=["GET"])
@@ -1105,23 +1072,8 @@ def firebase_session():
     if not isinstance(id_token, str) or len(id_token) < 100:
         return jsonify({"ok": False, "error": "Firebase sign-in token is missing or invalid."}), 400
     try:
-        lookup = firebase_identity_request("accounts:lookup", {"idToken": id_token})
-        users = lookup.get("users", [])
-        if not users:
-            return jsonify({"ok": False, "error": "Firebase account was not found."}), 401
-        user = users[0]
-        if user.get("disabled"):
-            return jsonify({"ok": False, "error": "This account has been disabled."}), 403
-        uid = user.get("localId", "")
-        email = user.get("email", "").strip().lower()
-        if not uid or not is_valid_email(email):
-            return jsonify({"ok": False, "error": "Firebase did not return a valid account."}), 401
-        display_name = user.get("displayName") or email.split("@", 1)[0]
-        profile = firebase_get_profile(uid, id_token)
-        if profile and str(profile.get("status", "Active")).lower() in {"blocked", "disabled"}:
-            return jsonify({"ok": False, "error": "This account is blocked. Contact the administrator."}), 403
-        if not profile:
-            firebase_create_profile(uid, email, display_name, id_token)
+        identity = verify_firebase_id_token(id_token)
+        uid, email = identity["uid"], identity["email"]
         session.clear()
         session.permanent = True
         session["username"] = email
@@ -1132,7 +1084,7 @@ def firebase_session():
         return jsonify({"ok": False, "error": str(exc)}), 401
     except Exception:
         app.logger.exception("Unexpected error during Firebase session exchange")
-        return jsonify({"ok": False, "error": "The sign-in succeeded, but the panel could not finish syncing your Firebase profile. Check BotKeep logs and Firestore access."}), 500
+        return jsonify({"ok": False, "error": "The sign-in succeeded, but the selected bot backend could not start a panel session."}), 500
 
 
 @app.route("/logout")
