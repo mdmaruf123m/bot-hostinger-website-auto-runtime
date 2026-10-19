@@ -104,6 +104,36 @@
     const userRef = db.collection("users").doc(user.uid);
     const profileSnap = await userRef.get();
     const profile = profileSnap.exists ? profileSnap.data() : {};
+    const billingSnap = await db.collection("admin_config").doc("billing").get();
+    const freeId = billingSnap.exists ? billingSnap.data().defaultFreePlanId : "";
+    const freePlanSnap = freeId ? await db.collection("plans").doc(String(freeId)).get() : null;
+    if (!profile.planSystemMigratedAt && freePlanSnap && freePlanSnap.exists) {
+      const freePlan = freePlanSnap.data();
+      const ramBytes = Number(freePlan.ramBytes) || (Number(freePlan.ramGiB) || 0) * 1024 ** 3;
+      const storageBytes = Number(freePlan.storageBytes) || (Number(freePlan.storageGiB) || 0) * 1024 ** 3;
+      const start = new Date();
+      let expiry = null;
+      const unit = String(freePlan.durationUnit || "lifetime").toLowerCase();
+      const amount = Math.max(1, Math.floor(Number(freePlan.durationValue) || 1));
+      if (unit === "days") { expiry = new Date(start); expiry.setDate(expiry.getDate() + amount); }
+      else if (unit === "months") { expiry = new Date(start); expiry.setMonth(expiry.getMonth() + amount); }
+      else if (unit === "years") { expiry = new Date(start); expiry.setFullYear(expiry.getFullYear() + amount); }
+      await userRef.set({
+        activePlanId: String(freeId),
+        activePlanName: freePlan.name || "Free package",
+        planStatus: "active",
+        planStartedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        planExpiresAt: expiry ? firebase.firestore.Timestamp.fromDate(expiry) : null,
+        maxBots: Number(freePlan.maxBots) || 0,
+        ramGiB: Number(freePlan.ramGiB) || ramBytes / (1024 ** 3),
+        storageGiB: Number(freePlan.storageGiB) || storageBytes / (1024 ** 3),
+        ramBytes,
+        storageBytes,
+        planSystemMigratedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+      return;
+    }
     if (profile.activePlanId) {
       const activePlanSnap = await db.collection("plans").doc(String(profile.activePlanId)).get();
       if (activePlanSnap.exists) {
@@ -129,10 +159,8 @@
       return;
     }
     if (profile.planId || profile.plan) return;
-    const billingSnap = await db.collection("admin_config").doc("billing").get();
-    const freeId = billingSnap.exists ? billingSnap.data().defaultFreePlanId : "";
     if (!freeId) return;
-    const planSnap = await db.collection("plans").doc(freeId).get();
+    const planSnap = freePlanSnap || await db.collection("plans").doc(freeId).get();
     if (!planSnap.exists) return;
     const plan = planSnap.data();
     const start = new Date();
@@ -157,6 +185,7 @@
         storageGiB: Number(plan.storageGiB) || 0,
         ramBytes: Number(plan.ramBytes) || (Number(plan.ramGiB) || 0) * 1024 ** 3,
         storageBytes: Number(plan.storageBytes) || (Number(plan.storageGiB) || 0) * 1024 ** 3,
+        planSystemMigratedAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       }, { merge: true });
     });

@@ -38,6 +38,7 @@ async function enter(user) {
           profile.activePlanId = freeId;
           profile.activePlanName = data.name || "Free package";
           profile.planStatus = "active";
+          profile.planSystemMigratedAt = firebase.firestore.FieldValue.serverTimestamp();
           profile.planStartedAt = firebase.firestore.FieldValue.serverTimestamp();
           profile.planExpiresAt = null;
           profile.maxBots = Number(data.maxBots) || 0;

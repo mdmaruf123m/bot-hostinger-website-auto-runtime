@@ -284,7 +284,7 @@
             const planSnap = await tx.get(planRef); if (!planSnap.exists) throw new Error('The package for this request no longer exists.');
             const userSnap = await tx.get(userRef); if (!userSnap.exists) throw new Error('No users/{uid} profile exists for this request.');
             const plan = planSnap.data(); const started = firebase.firestore.Timestamp.now(); const end = expiryFor(plan,started.toDate());
-            tx.set(userRef,{activePlanId:planRef.id,activePlanName:plan.name||order.planName||'Package',planStatus:'active',planStartedAt:started,planExpiresAt:end,maxBots:num(plan.maxBots),ramGiB:num(plan.ramGiB),storageGiB:num(plan.storageGiB),updatedAt:nowServer()},{merge:true});
+            tx.set(userRef,{activePlanId:planRef.id,activePlanName:plan.name||order.planName||'Package',planStatus:'active',planStartedAt:started,planExpiresAt:end,maxBots:num(plan.maxBots),ramGiB:num(plan.ramGiB),storageGiB:num(plan.storageGiB),ramBytes:num(plan.ramBytes),storageBytes:num(plan.storageBytes),planSystemMigratedAt:nowServer(),updatedAt:nowServer()},{merge:true});
           }
           tx.update(orderRef,updates);
         });
