@@ -5,3 +5,4 @@ gunicorn>=23,<24
 python-dotenv>=1,<2
 cryptography>=42,<51
 PyJWT[crypto]>=2.8,<3
+firebase-admin>=6,<8

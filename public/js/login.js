@@ -50,3 +50,19 @@ form.onsubmit = async (e) => {
     btn.textContent = "Log in";
   }
 };
+
+async function enterImpersonatedUser() {
+  const match = location.hash.match(/(?:^|&)impersonation_token=([^&]+)/);
+  if (!match) return false;
+  history.replaceState(null, '', location.pathname + location.search);
+  try {
+    const credential = await auth.signInWithCustomToken(decodeURIComponent(match[1]));
+    await enter(credential.user);
+    return true;
+  } catch (error) {
+    show(error.message || 'Support session could not be started.');
+    await auth.signOut().catch(() => {});
+    return true;
+  }
+}
+enterImpersonatedUser();

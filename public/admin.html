@@ -47,6 +47,7 @@
         <button class="nav-btn" data-page="plans"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21z"/><path d="M4 5.5v13A2.5 2.5 0 0 1 6.5 16H20M8 7h8M8 10h6"/></svg>Packages</button>
         <button class="nav-btn" data-page="orders"><svg viewBox="0 0 24 24"><path d="M7 3h10l3 3v15H4V3z"/><path d="M8 11h8M8 15h8M8 7h4"/><path d="m15 18 2 2 4-4"/></svg>Order Requests <span id="navPending" class="pill" style="margin-left:auto;padding:3px 7px">0</span></button>
         <button class="nav-btn" data-page="methods"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18M7 15h4"/></svg>Payment Methods</button>
+        <button class="nav-btn" data-page="users"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M3 20a6 6 0 0 1 12 0M16 5.5a3.5 3.5 0 0 1 0 6.8M17 15a5 5 0 0 1 4 5"/></svg>User Management</button>
       </nav>
       <div class="sidebar-bottom"><div class="connection"><span class="live-dot"></span><span>Firestore connected</span></div><div class="sidebar-note">Billing data is stored in your Firebase project.</div></div>
     </aside>
@@ -88,6 +89,10 @@
           <div id="methodCards" class="method-grid"><div class="empty">Loading payment methods…</div></div>
         </section>
 
+        <section id="page-users" class="page">
+          <div class="page-head"><div><h2>User Management</h2><p>Edit profiles and packages, block/unblock accounts, or open a support session.</p></div></div>
+          <section class="surface"><div id="usersTable" class="table-wrap"><div class="empty">Loading user profiles…</div></div></section>
+        </section>
         <section id="page-settings" class="page">
           <div class="page-head"><div><h2>Settings</h2><p>Configure image uploads and your selected bot-hosting backend.</p></div></div>
           <div class="settings-grid">
@@ -151,7 +156,7 @@
       const valid = ['dashboard','plans','orders','methods','settings'].includes(page) ? page : 'dashboard';
       document.querySelectorAll('.page').forEach((el) => el.classList.toggle('active', el.id === `page-${valid}`));
       document.querySelectorAll('.nav-btn').forEach((el) => el.classList.toggle('active', el.dataset.page === valid));
-      const titles = { dashboard: ['Dashboard','Subscription and payment operations at a glance.'], plans: ['Packages','Manage plan pricing, quotas, and duration.'], orders: ['Order Requests','Review and process subscription payments.'], methods: ['Payment Methods','Manage the payment options available to users.'], settings: ['Settings','Configure image uploads and hosting preferences.'] };
+      const titles = { dashboard: ['Dashboard','Subscription and payment operations at a glance.'], plans: ['Packages','Manage plan pricing, quotas, and duration.'], orders: ['Order Requests','Review and process subscription payments.'], methods: ['Payment Methods','Manage the payment options available to users.'], users: ['User Management','Manage profiles, packages, access, and support sessions.'], settings: ['Settings','Configure image uploads and hosting preferences.'] };
       $('sectionTitle').textContent = titles[valid][0]; $('sectionSubtitle').textContent = titles[valid][1];
       $('sidebar').classList.remove('open'); $('mobileScrim').classList.remove('show');
       if (valid === 'settings') loadSettings();
@@ -164,7 +169,7 @@
       state.unsubs.push(db.collection(C.plans).onSnapshot((snap) => { state.plans = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })); renderPlans(); renderStats(); renderDashboardOrders(); }, (err) => toast(`Packages: ${err.message}`)));
       state.unsubs.push(db.collection(C.methods).onSnapshot((snap) => { state.methods = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })); renderMethods(); renderStats(); }, (err) => toast(`Payment methods: ${err.message}`)));
       state.unsubs.push(db.collection(C.orders).onSnapshot((snap) => { state.orders = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })); state.orders.sort((a,b) => (dateOf(b.createdAt)?.getTime() || 0) - (dateOf(a.createdAt)?.getTime() || 0)); renderOrders(); renderDashboardOrders(); renderStats(); }, (err) => toast(`Order requests: ${err.message}`)));
-      state.unsubs.push(db.collection(C.users).onSnapshot((snap) => { state.users = snap.docs.filter((doc) => doc.id !== 'panel_config').map((doc) => ({ id: doc.id, ...doc.data() })); renderStats(); }, (err) => toast(`User profiles: ${err.message}`)));
+      state.unsubs.push(db.collection(C.users).onSnapshot((snap) => { state.users = snap.docs.filter((doc) => doc.id !== 'panel_config').map((doc) => ({ id: doc.id, ...doc.data() })); renderStats(); renderUsers(); }, (err) => toast(`User profiles: ${err.message}`)));
       state.unsubs.push(db.collection(C.config).doc('billing').onSnapshot((snap) => { state.billing = snap.exists ? snap.data() : {}; renderPlans(); renderStats(); }, (err) => toast(`Billing settings: ${err.message}`)));
     }
     function renderStats() {
@@ -173,6 +178,31 @@
       $('statPending').textContent = pending; $('pendingCount').textContent = pending; $('navPending').textContent = pending;
       $('statMethods').textContent = state.methods.length; $('statUsers').textContent = state.users.length;
     }
+    function userStatus(u) { return String(u.status || 'Active').toLowerCase() === 'blocked' ? 'blocked' : 'active'; }
+    function renderUsers() {
+      const root=$('usersTable'); if(!root) return;
+      if(!state.users.length){root.innerHTML='<div class="empty"><b>No user profiles found.</b>Users will appear here after registration.</div>';return;}
+      root.innerHTML=`<table class="table"><thead><tr><th>User</th><th>Package</th><th>Status</th><th>Actions</th></tr></thead><tbody>${state.users.map((u)=>{
+        const blocked=userStatus(u)==='blocked';
+        return `<tr><td><span class="cell-main">${esc(u.name||u.email||u.id)}</span><span class="cell-sub">${esc(u.email||'')}<br>${esc(u.id)}</span></td><td>${esc(u.activePlanName||'No package')}</td><td><span class="status ${blocked?'rejected':'approved'}">${blocked?'Blocked':'Active'}</span>${blocked&&u.blockedReason?`<span class="cell-sub">${esc(u.blockedReason)}</span>`:''}</td><td><div class="table-actions"><button class="btn secondary small" data-user-action="edit" data-id="${esc(u.id)}">Edit</button><button class="btn small" data-user-action="impersonate" data-id="${esc(u.id)}">Login as user</button><button class="btn ${blocked?'success':'danger'} small" data-user-action="${blocked?'unblock':'block'}" data-id="${esc(u.id)}">${blocked?'Unblock':'Block'}</button><button class="btn danger small" data-user-action="delete" data-id="${esc(u.id)}">Remove</button></div></td></tr>`;}).join('')}</tbody></table>`;
+    }
+    async function adminApi(path, options={}) {
+      const user=auth.currentUser; if(!user) throw new Error('Admin session expired.');
+      const headers={...(options.headers||{}),Authorization:`Bearer ${await user.getIdToken()}`};
+      if(options.body && !headers['Content-Type']) headers['Content-Type']='application/json';
+      const response=await fetch('/backend/admin-api'+path,{...options,headers}); const data=await response.json().catch(()=>({}));
+      if(!response.ok||!data.ok) throw new Error(data.error||`Request failed (${response.status})`); return data;
+    }
+    function openUserForm(id) {
+      const u=state.users.find((x)=>x.id===id); if(!u)return;
+      openModal('Edit user',`<form id="userForm"><div class="input-wrap"><label>Name *</label><input class="field" name="name" required maxlength="120" value="${esc(u.name||'')}"></div><div class="input-wrap"><label>Login email *</label><input class="field" name="email" type="email" required value="${esc(u.email||'')}"></div><div class="input-wrap"><label>New password (optional)</label><input class="field" name="password" type="password" minlength="6" autocomplete="new-password" placeholder="Leave blank to keep current password"><small class="muted">The old password cannot be viewed. This sets a new one.</small></div><div class="input-wrap"><label>Package</label><select class="field" name="planId"><option value="">Keep current package</option>${state.plans.map((p)=>`<option value="${esc(p.id)}" ${p.id===u.activePlanId?'selected':''}>${esc(p.name||p.id)}</option>`).join('')}</select></div><div id="modalError" class="modal-error hidden"></div><div class="save-row"><button class="btn secondary" type="button" data-close>Cancel</button><button class="btn" type="submit">Save changes</button></div></form>`);
+      $('userForm').addEventListener('submit',async(e)=>{e.preventDefault();if(!confirm('Confirm these user changes?'))return;const f=e.currentTarget,d=new FormData(f),btn=f.querySelector('[type="submit"]');btn.disabled=true;try{const body={name:String(d.get('name')).trim(),email:String(d.get('email')).trim()};if(String(d.get('password')||''))body.password=String(d.get('password'));if(String(d.get('planId')||''))body.planId=String(d.get('planId'));await adminApi('/users/'+encodeURIComponent(id),{method:'PATCH',body:JSON.stringify(body)});closeModal();toast('User updated.');}catch(err){showError(err.message);btn.disabled=false;}});
+    }
+    async function blockUser(id, blocked) {
+      if(blocked){openModal('Block user',`<form id="blockForm"><p class="muted">Optionally explain why this user is being blocked.</p><div class="input-wrap"><label>Reason (optional)</label><textarea class="field field-area" name="reason" maxlength="500" placeholder="Reason for block"></textarea></div><div id="modalError" class="modal-error hidden"></div><div class="save-row"><button class="btn secondary" type="button" data-close>Cancel</button><button class="btn danger" type="submit">Confirm block</button></div></form>`);$('blockForm').addEventListener('submit',async(e)=>{e.preventDefault();if(!confirm('Confirm blocking this user?'))return;const btn=e.currentTarget.querySelector('[type="submit"]');btn.disabled=true;try{await adminApi('/users/'+encodeURIComponent(id),{method:'PATCH',body:JSON.stringify({action:'block',reason:new FormData(e.currentTarget).get('reason')||''})});closeModal();toast('User blocked.');}catch(err){showError(err.message);btn.disabled=false;}});}else if(confirm('Confirm unblocking this user?')){try{await adminApi('/users/'+encodeURIComponent(id),{method:'PATCH',body:JSON.stringify({action:'unblock'})});toast('User unblocked.');}catch(err){toast(err.message);}}
+    }
+    async function deleteUser(id) { if(!confirm('Remove this user permanently from Firebase Authentication and Firestore? This cannot be undone.'))return;try{await adminApi('/users/'+encodeURIComponent(id),{method:'DELETE'});toast('User removed.');}catch(err){toast(err.message);} }
+    async function impersonateUser(id) { if(!confirm('Open the website as this user in a new tab?'))return;try{const data=await adminApi('/users/'+encodeURIComponent(id)+'/impersonate',{method:'POST'});window.open('/login.html#impersonation_token='+encodeURIComponent(data.token),'_blank','noopener');}catch(err){toast(err.message);}}
     function statusOf(order) { return String(order.status || 'pending').toLowerCase(); }
     function planById(id) { return state.plans.find((p) => p.id === id); }
     function durationLabel(plan) {
@@ -385,6 +415,7 @@
     document.querySelectorAll('.filter-btn').forEach((button)=>button.addEventListener('click',()=>{state.filter=button.dataset.filter;document.querySelectorAll('.filter-btn').forEach((b)=>b.classList.toggle('active',b===button));renderOrders();}));
     $('planCards').addEventListener('click',(event)=>{const btn=event.target.closest('[data-action]');if(!btn)return;if(btn.dataset.action==='edit-plan'){openPlanForm(btn.dataset.id);const form=$('planForm');form.dataset.id=btn.dataset.id;}if(btn.dataset.action==='delete-plan')deletePlan(btn.dataset.id);});
     $('methodCards').addEventListener('click',(event)=>{const btn=event.target.closest('[data-action]');if(!btn)return;if(btn.dataset.action==='edit-method')openMethodForm(btn.dataset.id);if(btn.dataset.action==='delete-method')deleteMethod(btn.dataset.id);if(btn.dataset.action==='copy')copyText(btn.dataset.copy||'');});
+    $('usersTable').addEventListener('click',(event)=>{const btn=event.target.closest('[data-user-action]');if(!btn)return;const id=btn.dataset.id;const action=btn.dataset.userAction;if(action==='edit')openUserForm(id);if(action==='block')blockUser(id,true);if(action==='unblock')blockUser(id,false);if(action==='delete')deleteUser(id);if(action==='impersonate')impersonateUser(id);});
     $('ordersTable').addEventListener('click',(event)=>{const btn=event.target.closest('[data-action]');if(!btn)return;if(btn.dataset.action==='approve-order')reviewOrder(btn.dataset.id,'approved');if(btn.dataset.action==='reject-order')reviewOrder(btn.dataset.id,'rejected');});
     $('saveImgbbKey').addEventListener('click',()=>{const value=$('imgbbKey').value.trim();if(!value){toast('Paste an ImgBB API key or use Clear.');return;}localStorage.setItem(KEY_NAME,value);toast('ImgBB key saved in this browser.');});
     $('clearImgbbKey').addEventListener('click',()=>{localStorage.removeItem(KEY_NAME);$('imgbbKey').value='';toast('ImgBB key removed from this browser.');}); $('saveBackend').addEventListener('click',saveBackend);

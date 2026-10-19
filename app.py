@@ -43,6 +43,9 @@ FIRESTORE_USER_DOCUMENT = (
     f"{FIREBASE_WEB_CONFIG['projectId']}/databases/(default)/documents/users/"
 )
 
+_firebase_admin_app = None
+_firebase_admin_lock = threading.Lock()
+
 # ============================================================
 # APP SETUP
 # ============================================================
@@ -1182,6 +1185,172 @@ def get_server_plan_limits(uid, id_token):
         "ramBytes": max(0, int(float(_firestore_value(fields["ramBytes"]) or 0))),
         "storageBytes": max(0, int(float(_firestore_value(fields["storageBytes"]) or 0))),
     }
+
+
+def firebase_admin_services():
+    """Load Firebase Admin SDK only from a deployment secret, never from the repo."""
+    global _firebase_admin_app
+    with _firebase_admin_lock:
+        try:
+            import firebase_admin
+            from firebase_admin import credentials, auth as firebase_admin_auth, firestore as firebase_admin_firestore
+        except ImportError as exc:
+            raise RuntimeError("firebase-admin is not installed on the backend.") from exc
+        if _firebase_admin_app is not None:
+            return firebase_admin_auth, firebase_admin_firestore.client()
+        raw = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON", "").strip()
+        if not raw:
+            raise RuntimeError("FIREBASE_SERVICE_ACCOUNT_JSON is not configured on the backend.")
+        try:
+            source = raw
+            if os.path.isfile(raw):
+                with open(raw, "r", encoding="utf-8") as key_file:
+                    source = key_file.read()
+            _firebase_admin_app = firebase_admin.initialize_app(
+                credentials.Certificate(json.loads(source)),
+                {"projectId": FIREBASE_WEB_CONFIG["projectId"]},
+            )
+            return firebase_admin_auth, firebase_admin_firestore.client()
+        except Exception as exc:
+            raise RuntimeError("Firebase Admin SDK could not be initialized.") from exc
+
+
+def require_admin_api():
+    """Verify Firebase ID token and admins/{uid}.role server-side."""
+    header = request.headers.get("Authorization", "")
+    token = header[7:].strip() if header.lower().startswith("bearer ") else ""
+    if not token:
+        return None, (jsonify({"ok": False, "error": "Admin authentication required."}), 401)
+    try:
+        identity = verify_firebase_id_token(token)
+        admin_auth, admin_db = firebase_admin_services()
+        admin_auth.verify_id_token(token)
+        admin_doc = admin_db.collection("admins").document(identity["uid"]).get()
+        if not admin_doc.exists or str((admin_doc.to_dict() or {}).get("role", "")).lower() != "admin":
+            return None, (jsonify({"ok": False, "error": "Administrator access required."}), 403)
+        return identity, None
+    except Exception as exc:
+        app.logger.warning("Admin API authorization failed: %s", exc)
+        return None, (jsonify({"ok": False, "error": "Admin authentication is unavailable or invalid."}), 401)
+
+
+def audit_admin_action(admin_uid, action, target_uid, details=None):
+    _, admin_db = firebase_admin_services()
+    admin_db.collection("admin_audit_logs").add({
+        "adminUid": admin_uid, "action": action, "targetUid": target_uid,
+        "details": details or {}, "createdAt": datetime.utcnow(),
+    })
+
+
+def admin_profile_update(admin_uid, target_uid, payload):
+    admin_auth, admin_db = firebase_admin_services()
+    user_record = admin_auth.get_user(target_uid)
+    auth_updates = {}
+    profile_updates = {"updatedAt": datetime.utcnow()}
+    if "email" in payload:
+        email = str(payload.get("email", "")).strip().lower()
+        if not is_valid_email(email):
+            raise ValueError("Enter a valid email address.")
+        auth_updates["email"] = email
+        profile_updates["email"] = email
+    if "name" in payload:
+        name = str(payload.get("name", "")).strip()[:120]
+        if not name:
+            raise ValueError("Name cannot be empty.")
+        auth_updates["display_name"] = name
+        profile_updates["name"] = name
+    if payload.get("password") is not None:
+        password = str(payload.get("password", ""))
+        if len(password) < 6 or len(password) > 128:
+            raise ValueError("New password must be 6–128 characters.")
+        auth_updates["password"] = password
+    plan_id = str(payload.get("planId", "")).strip()
+    if plan_id:
+        plan_doc = admin_db.collection("plans").document(plan_id).get()
+        if not plan_doc.exists:
+            raise ValueError("Selected package does not exist.")
+        plan = plan_doc.to_dict() or {}
+        profile_updates.update({
+            "activePlanId": plan_id, "activePlanName": plan.get("name", "Package"),
+            "planStatus": "active", "maxBots": max(0, int(float(plan.get("maxBots", 0) or 0))),
+            "ramGiB": float(plan.get("ramGiB", 0) or 0), "storageGiB": float(plan.get("storageGiB", 0) or 0),
+            "ramBytes": max(0, int(float(plan.get("ramBytes", 0) or 0))),
+            "storageBytes": max(0, int(float(plan.get("storageBytes", 0) or 0))),
+            "planSystemMigratedAt": datetime.utcnow(),
+        })
+    if auth_updates:
+        admin_auth.update_user(user_record.uid, **auth_updates)
+    if len(profile_updates) > 1:
+        admin_db.collection("users").document(target_uid).set(profile_updates, merge=True)
+    audit_admin_action(admin_uid, "update_user", target_uid, {"emailChanged": "email" in auth_updates, "passwordChanged": "password" in auth_updates, "planChanged": bool(plan_id)})
+    return admin_auth.get_user(target_uid), profile_updates
+
+
+@app.route("/admin-api/users/<uid>", methods=["PATCH", "DELETE"])
+def admin_user_api(uid):
+    identity, error = require_admin_api()
+    if error:
+        return error
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", uid):
+        return jsonify({"ok": False, "error": "Invalid user ID."}), 400
+    try:
+        admin_auth, admin_db = firebase_admin_services()
+        if request.method == "DELETE":
+            if uid == identity["uid"]:
+                return jsonify({"ok": False, "error": "You cannot delete your own admin account."}), 400
+            if admin_db.collection("admins").document(uid).get().exists:
+                return jsonify({"ok": False, "error": "Remove admin role before deleting this account."}), 400
+            user_folder = user_folder_id((admin_auth.get_user(uid).email or uid).lower())
+            local_db = load_db()
+            user_root = safe_join(UPLOAD_FOLDER, user_folder)
+            for app_name in os.listdir(user_root) if os.path.isdir(user_root) else []:
+                if is_safe_component(app_name):
+                    stop_app_process(user_folder, app_name, local_db, manual=True)
+                    shutil.rmtree(venv_path_for(user_folder, app_name), ignore_errors=True)
+                    shutil.rmtree(dependency_cache_for(user_folder, app_name), ignore_errors=True)
+            shutil.rmtree(user_root, ignore_errors=True)
+            save_db(local_db)
+            admin_auth.delete_user(uid)
+            admin_db.collection("users").document(uid).delete()
+            audit_admin_action(identity["uid"], "delete_user", uid)
+            return jsonify({"ok": True})
+        payload = request.get_json(silent=True) or {}
+        action = str(payload.get("action", "update"))
+        if action == "block":
+            reason = str(payload.get("reason", "")).strip()[:500]
+            admin_auth.update_user(uid, disabled=True)
+            admin_db.collection("users").document(uid).set({"status": "blocked", "blockedReason": reason, "updatedAt": datetime.utcnow()}, merge=True)
+            audit_admin_action(identity["uid"], "block_user", uid, {"reason": reason})
+        elif action == "unblock":
+            admin_auth.update_user(uid, disabled=False)
+            admin_db.collection("users").document(uid).set({"status": "Active", "blockedReason": "", "updatedAt": datetime.utcnow()}, merge=True)
+            audit_admin_action(identity["uid"], "unblock_user", uid)
+        else:
+            admin_profile_update(identity["uid"], uid, payload)
+        return jsonify({"ok": True})
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception as exc:
+        app.logger.exception("Admin user operation failed")
+        return jsonify({"ok": False, "error": "Could not complete this user operation."}), 500
+
+
+@app.route("/admin-api/users/<uid>/impersonate", methods=["POST"])
+def admin_impersonate(uid):
+    identity, error = require_admin_api()
+    if error:
+        return error
+    try:
+        admin_auth, admin_db = firebase_admin_services()
+        record = admin_auth.get_user(uid)
+        if record.disabled:
+            return jsonify({"ok": False, "error": "Unblock the user before impersonating."}), 400
+        token = admin_auth.create_custom_token(uid, {"impersonated": True, "impersonatedBy": identity["uid"]})
+        audit_admin_action(identity["uid"], "impersonate_user", uid)
+        return jsonify({"ok": True, "token": token.decode("utf-8") if isinstance(token, bytes) else token})
+    except Exception:
+        app.logger.exception("Admin impersonation failed")
+        return jsonify({"ok": False, "error": "Could not start the support session."}), 500
 
 
 @app.route("/login", methods=["GET"])

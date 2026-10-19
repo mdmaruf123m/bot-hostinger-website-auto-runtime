@@ -196,6 +196,17 @@
       return;
     }
     try {
+      const tokenInfo = await user.getIdTokenResult();
+      if (tokenInfo.claims.impersonated) {
+        const banner = document.createElement("div");
+        banner.textContent = "Support session: you are viewing this website as another user.";
+        Object.assign(banner.style, {position:"fixed", top:"0", left:"0", right:"0", zIndex:"9999", padding:"9px", background:"#7a2e45", color:"white", textAlign:"center", fontWeight:"700"});
+        const exit = document.createElement("button"); exit.textContent = "Exit";
+        Object.assign(exit.style, {marginLeft:"12px", padding:"4px 10px", cursor:"pointer"});
+        exit.onclick = () => auth.signOut(); banner.appendChild(exit); document.body.appendChild(banner);
+      }
+    } catch (_) {}
+    try {
       await ensureDefaultFreePlan(user);
     } catch (_) {
       // Billing setup or Firestore permissions should not block account access.
