@@ -14,12 +14,43 @@
 .btn{transition:filter .15s ease,transform .15s ease}.btn:hover{filter:brightness(1.16);transform:translateY(-1px)}
 .btn:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #a49eff;outline-offset:2px}
 .pill{color:#c9c5ff}.pill.off{color:#ff9caf}.meta,.toggles label{color:#c1bbdf}
+
+/* Professional dimensional surfaces and restrained 3D motion */
+:root{--glass:rgba(17,14,48,.82);--edge:rgba(164,158,255,.2);--glow:rgba(113,106,255,.22)}
+body{background:radial-gradient(ellipse at 10% -10%,rgba(64,46,255,.42),transparent 38%),radial-gradient(ellipse at 90% 18%,rgba(104,64,255,.13),transparent 30%),linear-gradient(145deg,#0b0753 0%,#050217 70%);perspective:1400px;isolation:isolate}
+body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background-image:linear-gradient(rgba(164,158,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(164,158,255,.035) 1px,transparent 1px);background-size:42px 42px;mask-image:linear-gradient(to bottom,black,transparent 82%)}
+.wrap{max-width:1040px;transform-style:preserve-3d}
+.bar,.card,.stat,.upload,.modal{position:relative;overflow:hidden;background:linear-gradient(145deg,rgba(26,22,68,.94),rgba(9,7,31,.96));border:1px solid var(--edge);box-shadow:0 18px 42px rgba(0,0,0,.4),inset 0 1px rgba(255,255,255,.08),inset 0 -1px rgba(0,0,0,.35);transform-style:preserve-3d;transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease}
+.bar:after,.card:after,.stat:after,.upload:after,.modal:after{content:"";position:absolute;inset:0 0 auto;height:1px;background:linear-gradient(90deg,transparent,rgba(210,206,255,.55),transparent);pointer-events:none}
+.bar{padding:15px 18px;border-radius:18px;background:linear-gradient(120deg,rgba(37,31,101,.94),rgba(13,10,43,.92));backdrop-filter:blur(16px);box-shadow:0 18px 50px #0005,inset 0 1px #ffffff22,inset 0 -8px 18px #03001455}
+.bar b{letter-spacing:.2px;text-shadow:0 2px 14px #9b95ff66}
+.heading{margin-top:24px}.heading h1{letter-spacing:-.04em;text-shadow:0 5px 22px #08051d}.heading p{margin-top:7px}
+.stats{gap:14px;margin:20px 0}.stat{border-radius:17px;padding:16px 18px;background:linear-gradient(150deg,rgba(25,21,75,.97),rgba(10,8,35,.96));box-shadow:0 14px 30px #02010d66,inset 0 1px #ffffff12,inset 0 -10px 22px #04021a66}
+.stat:nth-child(1){border-color:#716aff55}.stat:nth-child(2){border-color:#51d8b155}.stat:nth-child(3){border-color:#ff789155}
+.stat strong{margin-top:5px;text-shadow:0 0 18px #aaa4ff55}
+.upload{position:relative;border:1px solid rgba(151,143,255,.32);border-radius:20px;padding:27px;background:radial-gradient(ellipse at 50% 0%,rgba(113,106,255,.18),transparent 65%),linear-gradient(145deg,rgba(25,21,75,.92),rgba(9,7,31,.95));box-shadow:0 22px 44px #02010d88,inset 0 1px #ffffff1c,inset 0 -12px 25px #03001455}
+.upload p{font-size:14px;color:#eeeaff;font-weight:750;letter-spacing:.01em;margin:11px 0 15px;text-shadow:0 2px 8px #0008}
+.toolbar{margin:18px 0 13px}.toolbar input,.toolbar select{border-color:#49427c;background:linear-gradient(180deg,#15113c,#0b0927);box-shadow:inset 0 2px 8px #0005,0 4px 12px #0002}
+.card{padding:17px;border-radius:18px;margin-bottom:14px;background:linear-gradient(145deg,rgba(25,21,72,.97),rgba(9,7,31,.97));box-shadow:0 16px 34px #02010d66,inset 0 1px #ffffff12,inset 0 -10px 22px #03001455}
+.name{font-size:15px;letter-spacing:.01em}.pill{background:linear-gradient(145deg,#221c61,#13103d);box-shadow:inset 0 1px #ffffff1c,0 4px 10px #0003}.pill.off{background:linear-gradient(145deg,#40152c,#210d22)}
+.btn{position:relative;border:1px solid rgba(255,255,255,.12);background:linear-gradient(145deg,#5148ec 0%,#21178d 60%,#120b55 100%);box-shadow:inset 0 1px 0 #ffffff3b,inset 0 -2px 0 #05022566,0 7px 14px #03001466;text-shadow:0 1px 5px #03001466;transition:transform .18s ease,filter .18s ease,box-shadow .18s ease}
+.btn:hover{filter:brightness(1.14);transform:translateY(-2px);box-shadow:inset 0 1px #ffffff55,0 11px 20px #03001488}
+.btn:active{transform:translateY(1px);box-shadow:inset 0 2px 6px #0005,0 2px 5px #0004}
+.btn.outline{background:linear-gradient(145deg,#201b4d,#100d2c);border-color:#625bd266;box-shadow:inset 0 1px #ffffff19,inset 0 -2px #05021755,0 5px 11px #03001455}
+.btn.danger{background:linear-gradient(145deg,#bd3554,#65142f);border-color:#ff8ca133}
+.modal-bg{backdrop-filter:blur(8px);background:rgba(3,2,17,.72)}.modal{background:linear-gradient(145deg,#191548,#0a0825);box-shadow:0 32px 90px #000b,inset 0 1px #ffffff1a;border-color:#716aff55;animation:modalLift .22s ease-out}
+@keyframes modalLift{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+.log,.editor{border:1px solid #464077;box-shadow:inset 0 8px 20px #0006}
+.file{border:1px solid #ffffff0b;box-shadow:inset 0 1px #ffffff09;transition:transform .16s ease,border-color .16s ease}.file:hover{transform:translateX(3px);border-color:#716aff66}
+@media(hover:hover){.stat:hover,.card:hover{transform:translateY(-4px) rotateX(1deg);border-color:#8b84ff77;box-shadow:0 24px 45px #02010d88,inset 0 1px #ffffff1e,inset 0 -10px 22px #03001455}.upload:hover{transform:translateY(-2px);border-color:#aaa4ff88;box-shadow:0 26px 54px #02010d99,inset 0 1px #ffffff25}}
+@media(max-width:560px){.stats{gap:8px}.stat{padding:12px 10px}.upload{padding:21px 14px}.card{padding:13px}.bar{padding:12px 13px}.btn:hover{transform:none}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 </style></head>
 <body><main class="wrap">
 <header class="bar"><span><i class="fa-solid fa-circle-user"></i> <b id="userName">Loading…</b></span><a href="#" id="logout" title="Sign out"><i class="fa-solid fa-power-off"></i> Sign out</a></header>
 <section class="heading"><div><h1>Hosting overview</h1><p class="muted">Manage your Python, Node.js, and PHP bots.</p></div><button class="btn outline" onclick="loadApps()"><i class="fa-solid fa-arrows-rotate"></i> Refresh</button></section>
 <section class="stats"><div class="stat"><span>Total apps</span><strong id="total">0</strong></div><div class="stat"><span>Running</span><strong id="running">0</strong></div><div class="stat"><span>Offline</span><strong id="offline">0</strong></div></section>
-<section class="upload"><i class="fa-solid fa-cloud-arrow-up" style="font-size:26px;color:#aaa4ff"></i><p>Upload a ZIP archive (up to 100 MB through Cloudflare Free). Python, Node.js and PHP are detected automatically. The runner and bot processes remain on BotKeep.</p><input id="zip" type="file" accept=".zip" hidden><button class="btn" onclick="document.getElementById('zip').click()"><i class="fa-solid fa-upload"></i> Choose ZIP</button><div id="uploadStatus" class="muted" style="margin-top:10px"></div></section>
+<section class="upload"><i class="fa-solid fa-cloud-arrow-up" style="font-size:26px;color:#aaa4ff"></i><p>Upload your ZIP file (Maximum 100 MB)</p><input id="zip" type="file" accept=".zip" hidden><button class="btn" onclick="document.getElementById('zip').click()"><i class="fa-solid fa-upload"></i> Choose ZIP</button><div id="uploadStatus" class="muted" style="margin-top:10px"></div></section>
 <div class="toolbar"><input id="search" type="search" placeholder="Search your apps"><select id="filter"><option value="all">All statuses</option><option value="running">Running</option><option value="offline">Offline</option></select></div>
 <section id="apps"><div class="empty">Loading your apps…</div></section>
 </main>
