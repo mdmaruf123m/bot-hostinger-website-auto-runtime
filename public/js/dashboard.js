@@ -40,7 +40,14 @@ async function ensureBackendSession(user) {
     method: "POST",
     credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ idToken: await user.getIdToken() }),
+    body: JSON.stringify({
+      idToken: await user.getIdToken(),
+      limits: {
+        maxBots: Number(window.panelProfile?.maxBots) || 0,
+        ramBytes: Number(window.panelProfile?.ramBytes) || (Number(window.panelProfile?.ramGiB) || 0) * 1024 ** 3,
+        storageBytes: Number(window.panelProfile?.storageBytes) || (Number(window.panelProfile?.storageGiB) || 0) * 1024 ** 3,
+      },
+    }),
   });
   const raw = await response.text();
   let data;

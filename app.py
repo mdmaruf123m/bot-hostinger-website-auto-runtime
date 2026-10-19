@@ -9,6 +9,7 @@ import random
 import subprocess
 import signal
 import threading
+import resource
 import py_compile
 import io
 from datetime import datetime, timedelta
@@ -142,6 +143,39 @@ def get_config(db, key):
 
 def get_user_concurrency_limit(db, email):
     return get_config(db, "max_concurrent_per_user")
+
+def get_user_plan_limits():
+    raw = session.get("plan_limits") or {}
+    return {
+        "maxBots": max(0, int(float(raw.get("maxBots", 0) or 0))),
+        "ramBytes": max(0, int(float(raw.get("ramBytes", 0) or 0))),
+        "storageBytes": max(0, int(float(raw.get("storageBytes", 0) or 0))),
+    }
+
+def user_storage_bytes(user):
+    root = safe_join(UPLOAD_FOLDER, user)
+    total = 0
+    if not os.path.isdir(root):
+        return 0
+    for base, _, files in os.walk(root):
+        for filename in files:
+            try:
+                total += os.path.getsize(os.path.join(base, filename))
+            except OSError:
+                pass
+    return total
+
+def directory_bytes(root):
+    total = 0
+    if not os.path.isdir(root):
+        return 0
+    for base, _, files in os.walk(root):
+        for filename in files:
+            try:
+                total += os.path.getsize(os.path.join(base, filename))
+            except OSError:
+                pass
+    return total
 
 # ============================================================
 # SECURITY HELPERS
@@ -707,6 +741,11 @@ def start_app_process(user, name, db):
 
     settings = get_app_settings(db, user, name)
 
+    plan_limits = get_user_plan_limits()
+    total_apps = sum(1 for item in os.listdir(safe_join(UPLOAD_FOLDER, user)) if os.path.isdir(safe_join(UPLOAD_FOLDER, user, item)))
+    if plan_limits["maxBots"] and total_apps > plan_limits["maxBots"]:
+        return {"ok": False, "error": f"Your package allows {plan_limits['maxBots']} hosted bot(s). Remove an extra bot or upgrade your package."}
+
     # concurrency guards (soft, configurable — not meant to block normal usage)
     max_global = get_config(db, "max_concurrent_global")
     max_user = get_user_concurrency_limit(db, user)
@@ -818,8 +857,14 @@ def start_app_process(user, name, db):
     trim_log_if_needed(log_path)
     log_file = open(log_path, "a", encoding="utf-8", errors="ignore")
     try:
+        preexec = None
+        if os.name == "posix" and plan_limits["ramBytes"] > 0:
+            memory_limit = plan_limits["ramBytes"]
+            def limit_process_memory():
+                resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
+            preexec = limit_process_memory
         proc = subprocess.Popen(cmd, cwd=project_root, stdout=log_file, stderr=log_file,
-                                text=True, env=env, start_new_session=(os.name == "posix"))
+                                text=True, env=env, start_new_session=(os.name == "posix"), preexec_fn=preexec)
     except Exception as e:
         append_log(log_path, f"Process start error: {e}\n")
         return {"ok": False, "error": str(e)}
@@ -1113,6 +1158,12 @@ def firebase_session():
         session["username"] = email
         session["uid"] = uid
         session["user_folder"] = user_folder_id(email)
+        limits = body.get("limits") if isinstance(body.get("limits"), dict) else {}
+        session["plan_limits"] = {
+            "maxBots": max(0, int(float(limits.get("maxBots", 0) or 0))),
+            "ramBytes": max(0, int(float(limits.get("ramBytes", 0) or 0))),
+            "storageBytes": max(0, int(float(limits.get("storageBytes", 0) or 0))),
+        }
         return jsonify({"ok": True, "redirect": url_for("index")})
     except FirebaseAuthError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 401
@@ -1219,11 +1270,21 @@ def _do_upload(user_name):
 
     user_dir = safe_join(UPLOAD_FOLDER, user_name, app_name)
     already_exists = os.path.exists(user_dir)
+    limits = get_user_plan_limits()
+    user_root = safe_join(UPLOAD_FOLDER, user_name)
+    existing_bots = sum(1 for item in os.listdir(user_root) if os.path.isdir(safe_join(user_root, item))) if os.path.isdir(user_root) else 0
+    if not already_exists and limits["maxBots"] and existing_bots >= limits["maxBots"]:
+        return jsonify({"ok": False, "error": f"Your package allows only {limits['maxBots']} hosted bot(s). Upgrade your package to add another bot."}), 403
     if already_exists and not overwrite:
         return jsonify({"ok": False, "needs_confirm": True, "error": f"'{app_name}' already exists. Overwrite it?"}), 200
 
     tmp_zip = os.path.join(BASE_DIR, f"_tmp_{user_name}_{app_name}_{int(time.time())}.zip")
     file.save(tmp_zip)
+
+    existing_storage = user_storage_bytes(user_name) - (directory_bytes(user_dir) if already_exists else 0)
+    if limits["storageBytes"] and existing_storage + os.path.getsize(tmp_zip) > limits["storageBytes"]:
+        os.remove(tmp_zip)
+        return jsonify({"ok": False, "error": "This upload would exceed your package storage limit."}), 413
 
     if not zipfile.is_zipfile(tmp_zip):
         os.remove(tmp_zip)
@@ -1265,6 +1326,10 @@ def _do_upload(user_name):
     if not os.path.exists(extract_dir) or not os.listdir(extract_dir):
         shutil.rmtree(user_dir, ignore_errors=True)
         return jsonify({"ok": False, "error": "No files were found after extraction; the ZIP may be empty."}), 400
+
+    if limits["storageBytes"] and user_storage_bytes(user_name) > limits["storageBytes"]:
+        shutil.rmtree(user_dir, ignore_errors=True)
+        return jsonify({"ok": False, "error": "The extracted bot exceeds your package storage limit."}), 413
 
     entry, kind, project_root = find_project(extract_dir)
     if not entry:

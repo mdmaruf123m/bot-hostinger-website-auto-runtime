@@ -131,6 +131,8 @@
         maxBots: Number(plan.maxBots) || 0,
         ramGiB: Number(plan.ramGiB) || 0,
         storageGiB: Number(plan.storageGiB) || 0,
+        ramBytes: Number(plan.ramBytes) || (Number(plan.ramGiB) || 0) * 1024 ** 3,
+        storageBytes: Number(plan.storageBytes) || (Number(plan.storageGiB) || 0) * 1024 ** 3,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       }, { merge: true });
     });
@@ -144,6 +146,12 @@
       await ensureDefaultFreePlan(user);
     } catch (_) {
       // Billing setup or Firestore permissions should not block account access.
+    }
+    try {
+      const latest = await window.panelDb.collection("users").doc(user.uid).get();
+      window.panelProfile = latest.exists ? latest.data() : {};
+    } catch (_) {
+      window.panelProfile = {};
     }
     window.updateProfileCard(user);
     window.dispatchEvent(

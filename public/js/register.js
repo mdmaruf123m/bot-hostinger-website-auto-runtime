@@ -43,6 +43,8 @@ async function enter(user) {
           profile.maxBots = Number(data.maxBots) || 0;
           profile.ramGiB = Number(data.ramGiB) || 0;
           profile.storageGiB = Number(data.storageGiB) || 0;
+          profile.ramBytes = Number(data.ramBytes) || profile.ramGiB * 1024 ** 3;
+          profile.storageBytes = Number(data.storageBytes) || profile.storageGiB * 1024 ** 3;
         }
       }
     } catch (_) {
