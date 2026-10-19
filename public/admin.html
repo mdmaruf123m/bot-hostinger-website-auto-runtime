@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#050217">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Botlova · Admin Console</title>
+  <style>
+    :root{color-scheme:dark;--bg:#050217;--bg2:#090622;--panel:#100d2b;--panel2:#17123a;--line:#2b255b;--line2:#40377d;--violet:#716aff;--violet2:#4e43e8;--cyan:#78dcff;--green:#54d6aa;--amber:#ffcf75;--red:#ff7188;--text:#f5f2ff;--muted:#aaa5ca;--shadow:0 20px 55px #0005;--radius:20px}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 15% -5%,#0d078266,transparent 34%),radial-gradient(ellipse at 94% 18%,#4432a522,transparent 31%),linear-gradient(145deg,#08051e,#050217 58%,#08051f);color:var(--text);font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}button,input,select,textarea{font:inherit}button{color:inherit;cursor:pointer}button:disabled{opacity:.55;cursor:not-allowed}svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}.hidden{display:none!important}.muted{color:var(--muted)}
+    .gate{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:20px;background:#050217f2}.gate-card{width:min(100%,410px);padding:30px;border:1px solid #5146a4;border-radius:26px;background:linear-gradient(145deg,#17123e,#0b0823);box-shadow:0 35px 100px #000a,inset 0 1px #ffffff18;text-align:center}.brand-mark{width:58px;height:58px;margin:0 auto 15px;display:grid;place-items:center;border-radius:20px;background:linear-gradient(145deg,#8a82ff,#3528bf 72%);box-shadow:inset 0 2px #ffffff55,0 12px 30px #3325b866;font-weight:950;font-size:24px}.gate-card h1{margin:0 0 5px;font-size:22px}.gate-card p{margin:0;color:var(--muted)}.gate-card input{margin-top:20px;text-align:center;letter-spacing:.18em}
+    .app-shell{min-height:100vh;display:grid;grid-template-columns:274px minmax(0,1fr)}.sidebar{position:sticky;top:0;height:100vh;padding:22px 16px 17px;background:linear-gradient(180deg,#100c2cfa,#090620fa);border-right:1px solid #342d6a;box-shadow:12px 0 42px #0002;display:flex;flex-direction:column;z-index:25}.brand{display:flex;align-items:center;gap:12px;padding:2px 9px 23px}.brand .brand-mark{width:43px;height:43px;margin:0;border-radius:15px;font-size:18px}.brand-name{font-weight:900;letter-spacing:.04em;font-size:16px}.brand-sub{display:block;color:var(--muted);font-size:11px;margin-top:1px}.nav-label{padding:12px 12px 7px;color:#8580ac;font-size:10px;text-transform:uppercase;letter-spacing:.16em;font-weight:850}.nav-list{display:grid;gap:7px}.nav-btn{position:relative;display:flex;align-items:center;gap:13px;width:100%;padding:13px 14px;border:1px solid transparent;border-radius:14px;background:transparent;color:#c4bfdc;text-align:left;font-weight:750;transition:transform .15s ease,background .15s ease,border-color .15s ease,box-shadow .15s ease}.nav-btn:hover{transform:translateX(2px);background:#ffffff08;border-color:#ffffff10}.nav-btn.active{color:#fff;background:linear-gradient(115deg,#4336ca66,#241d5970);border-color:#766eff77;box-shadow:inset 0 1px #ffffff20,0 8px 22px #05021866}.nav-btn.active:before{content:"";position:absolute;left:-17px;top:9px;bottom:9px;width:4px;border-radius:0 5px 5px 0;background:linear-gradient(#a8a2ff,#685dff);box-shadow:0 0 15px #796fff}.nav-btn svg{width:20px;height:20px;color:#aaa4dd}.nav-btn.active svg{color:#c8c4ff}.sidebar-bottom{margin-top:auto;padding:14px 10px 0;border-top:1px solid #ffffff10}.connection{display:flex;align-items:center;gap:9px;padding:10px 7px;color:#c9c4e2;font-size:12px}.live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 13px #54d6aa99}.sidebar-note{padding:2px 7px 5px;color:#817ca3;font-size:10px;line-height:1.5}
+    .main{min-width:0;padding:0 30px 44px}.topbar{position:sticky;top:0;z-index:15;min-height:82px;display:flex;align-items:center;gap:14px;padding:12px 0;background:linear-gradient(#08051ff2 70%,#08051f00)}.hamburger{display:none;width:46px;height:44px;padding:10px 11px;border:1px solid var(--line);border-radius:13px;background:linear-gradient(145deg,#1c1744,#0c0925);box-shadow:inset 0 1px #ffffff12,0 8px 18px #0004}.hamburger span{display:block;height:3px;margin:4px 0;border-radius:4px;background:#eeecff}.head-title{min-width:0;flex:1}.head-title h1{margin:0;font-size:22px;letter-spacing:-.02em}.head-title p{margin:2px 0 0;color:var(--muted);font-size:12px}.top-actions{display:flex;align-items:center;gap:9px}.icon-btn{width:42px;height:42px;display:inline-grid;place-items:center;border:1px solid var(--line);border-radius:13px;background:linear-gradient(145deg,#1b1644,#0b0822);box-shadow:inset 0 1px #ffffff12,0 8px 18px #0003;transition:transform .15s ease,border-color .15s ease}.icon-btn:hover{transform:translateY(-2px);border-color:#766eff}.admin-chip{display:flex;align-items:center;gap:9px;padding:6px 11px 6px 6px;border:1px solid var(--line);border-radius:999px;background:#100d2b}.admin-avatar{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#796fff,#3325ad);font-size:12px;font-weight:900}.admin-chip span{font-size:12px;font-weight:750}
+    .content{max-width:1500px;margin:8px auto 0}.page{display:none;animation:pageIn .15s ease both}.page.active{display:block}@keyframes pageIn{from{opacity:.55;transform:translateY(4px)}to{opacity:1;transform:none}}.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:8px 0 20px}.page-head h2{margin:0;font-size:24px;letter-spacing:-.025em}.page-head p{margin:5px 0 0;color:var(--muted);font-size:13px}.page-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+    .btn{min-height:40px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 14px;border:1px solid transparent;border-radius:12px;background:linear-gradient(145deg,#766dff,#4234ce);color:#fff;font-weight:820;box-shadow:inset 0 1px #ffffff38,0 8px 19px #231a8a55;transition:transform .15s ease,filter .15s ease,border-color .15s ease}.btn:hover{transform:translateY(-2px);filter:brightness(1.08)}.btn svg{width:17px;height:17px}.btn.secondary{background:linear-gradient(145deg,#262052,#14102f);border-color:var(--line);color:#e5e2ff;box-shadow:inset 0 1px #ffffff12,0 7px 16px #0003}.btn.danger{background:linear-gradient(145deg,#85324d,#531c35);border-color:#a14962;color:#ffe3e9}.btn.success{background:linear-gradient(145deg,#238568,#145341);border-color:#348c71}.btn.small{min-height:33px;padding:0 10px;border-radius:10px;font-size:12px}.btn:disabled{transform:none;filter:none}
+    .stats-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}.stat-card,.surface,.plan-card,.method-card{position:relative;border:1px solid #332d69;border-radius:var(--radius);background:linear-gradient(145deg,#15113a,#0e0b29 70%);box-shadow:inset 0 1px #ffffff12,0 16px 38px #0003;overflow:hidden}.stat-card:after{content:"";position:absolute;top:-55px;right:-45px;width:125px;height:125px;border-radius:50%;background:radial-gradient(circle,#786dff33,transparent 70%);pointer-events:none}.stat-card{padding:18px}.stat-top{display:flex;align-items:center;justify-content:space-between;gap:10px}.stat-label{color:#aaa5ca;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em}.stat-icon{width:39px;height:39px;display:grid;place-items:center;border-radius:13px;background:#716aff22;color:#b2adff;border:1px solid #8178ff33}.stat-number{display:block;margin-top:15px;font-size:30px;line-height:1;font-weight:920;letter-spacing:-.04em}.stat-foot{margin-top:8px;color:#8f89ae;font-size:11px}.stat-card.accent-green .stat-icon{color:var(--green);background:#54d6aa17;border-color:#54d6aa33}.stat-card.accent-amber .stat-icon{color:var(--amber);background:#ffcf7517;border-color:#ffcf7533}.stat-card.accent-cyan .stat-icon{color:var(--cyan);background:#78dcff17;border-color:#78dcff33}
+    .dashboard-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(280px,.8fr);gap:16px;margin-top:17px}.surface{padding:0}.surface-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:17px 18px;border-bottom:1px solid #ffffff10}.surface-head h3{margin:0;font-size:15px}.surface-body{padding:16px 18px}.quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}.quick-card{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid #3a346f;border-radius:15px;background:linear-gradient(145deg,#211a52,#110d31);text-align:left;box-shadow:inset 0 1px #ffffff12;transition:transform .15s ease,border-color .15s ease}.quick-card:hover{transform:translateY(-2px);border-color:#7b71ff}.quick-icon{width:39px;height:39px;display:grid;place-items:center;border-radius:12px;background:#716aff2b;color:#c7c3ff}.quick-card b{display:block;font-size:12px}.quick-card small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+    .table-wrap{width:100%;overflow:auto}.table{width:100%;border-collapse:collapse;min-width:760px}.table th{padding:12px 14px;color:#9690b9;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.1em;border-bottom:1px solid #39336c;white-space:nowrap}.table td{padding:13px 14px;border-bottom:1px solid #ffffff0d;vertical-align:middle;font-size:12px}.table tr:last-child td{border-bottom:0}.table tbody tr:hover{background:#ffffff05}.cell-main{font-weight:800;color:#f3f0ff}.cell-sub{display:block;color:#938eae;font-size:10px;margin-top:3px;overflow-wrap:anywhere}.status{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.05em}.status:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}.status.pending{color:var(--amber);background:#ffcf7517}.status.approved{color:var(--green);background:#54d6aa16}.status.rejected{color:#ff9daf;background:#ff718817}.table-actions{display:flex;gap:6px}.empty{padding:34px 15px;text-align:center;color:#9d97b9}.empty b{display:block;color:#e5e1fb;margin-bottom:4px}.filters{display:flex;gap:7px;flex-wrap:wrap}.filter-btn{min-height:34px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:#100d2b;color:#b8b3d3;font-size:11px;font-weight:800}.filter-btn.active{border-color:#716aff88;background:#4234ce44;color:#fff}
+    .plan-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}.plan-card{padding:18px;transition:transform .16s ease,border-color .16s ease}.plan-card:hover,.method-card:hover{transform:translateY(-3px);border-color:#7068ca}.plan-card.default{border-color:#716affaa;box-shadow:inset 0 1px #ffffff18,0 0 0 1px #716aff33,0 18px 40px #221a8b22}.plan-card:before{content:"";position:absolute;inset:0 0 auto;height:3px;background:linear-gradient(90deg,#0d0782,#8078ff,#78dcff)}.plan-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.plan-name{margin:0;font-size:17px}.plan-description{margin:6px 0 0;color:var(--muted);font-size:11px;min-height:33px}.price{margin:17px 0;font-size:27px;font-weight:930;letter-spacing:-.05em}.price small{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:0}.pill{display:inline-flex;padding:5px 9px;border-radius:999px;background:#252052;color:#c6c1ff;border:1px solid #524995;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}.pill.free{background:#153b32;color:#73e2ba;border-color:#2c795f}.plan-limits{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0}.limit{padding:10px;border-radius:12px;background:#08061b88;border:1px solid #ffffff0b}.limit b{display:block;font-size:14px}.limit small{display:block;color:#9993b8;font-size:9px;text-transform:uppercase;letter-spacing:.07em}.feature-list{margin:13px 0 16px;padding:0;list-style:none;color:#c9c4dc;font-size:11px}.feature-list li{padding:5px 0;border-bottom:1px solid #ffffff0a}.feature-list li:before{content:"✓";margin-right:8px;color:var(--green);font-weight:900}.card-actions{display:flex;gap:8px}.card-actions .btn{flex:1}
+    .method-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}.method-card{padding:0;transition:transform .16s ease,border-color .16s ease}.method-image{height:155px;background:linear-gradient(135deg,#231b57,#0b0823);display:grid;place-items:center;overflow:hidden;border-bottom:1px solid #ffffff10}.method-image img{width:100%;height:100%;object-fit:cover}.image-placeholder{color:#8882aa;font-size:12px;display:flex;align-items:center;gap:8px}.method-info{padding:15px}.method-info h3{margin:0;font-size:15px}.method-number{display:flex;align-items:center;gap:8px;margin-top:8px;color:#cfcaff;font-weight:800;overflow-wrap:anywhere}.method-desc{min-height:36px;margin:8px 0 12px;color:var(--muted);font-size:11px}.method-info .card-actions{margin-top:10px}
+    .settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.settings-card{padding:19px}.settings-card h3{margin:0;font-size:15px}.settings-card p{margin:6px 0 16px;color:var(--muted);font-size:12px;line-height:1.65}.security-note{margin-top:15px;padding:13px 14px;border:1px solid #7c622d;border-radius:13px;background:#3b2b101c;color:#f5dca7;font-size:11px;line-height:1.6}.input-wrap{display:grid;gap:7px;margin:12px 0}.input-wrap label{font-size:11px;color:#c2bddb;font-weight:800}.field{width:100%;min-height:43px;padding:10px 12px;border:1px solid #3a346b;border-radius:11px;background:#08061c;color:var(--text);outline:none;box-shadow:inset 0 2px 8px #0003}.field:focus{border-color:#8178ff;box-shadow:0 0 0 3px #716aff22}.field::placeholder{color:#6f6a8a}.field[type=file]{padding:9px}.field-area{min-height:88px;resize:vertical}.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.checkbox-line{display:flex;align-items:flex-start;gap:10px;margin:10px 0;padding:12px;border:1px solid #4c438b;border-radius:12px;background:#221c5222}.checkbox-line input{margin-top:3px;accent-color:#716aff}.checkbox-line b{display:block;font-size:12px}.checkbox-line small{display:block;color:var(--muted);margin-top:3px;font-size:10px;line-height:1.5}.preview{max-width:100%;max-height:155px;object-fit:contain;border:1px solid var(--line);border-radius:12px;margin-top:8px;background:#08061b}.save-row{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.modal-backdrop{position:fixed;inset:0;z-index:40;display:none;place-items:center;padding:18px;background:#030211cc;backdrop-filter:blur(8px)}.modal-backdrop.open{display:grid}.modal{width:min(100%,650px);max-height:min(90vh,850px);overflow:auto;border:1px solid #5a50a4;border-radius:22px;background:linear-gradient(145deg,#17123c,#0a0722);box-shadow:0 35px 100px #000b,inset 0 1px #ffffff1a}.modal-head{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:12px;padding:16px 19px;border-bottom:1px solid #ffffff12;background:#151038ee;backdrop-filter:blur(10px)}.modal-head h2{flex:1;margin:0;font-size:16px}.modal-close{width:34px;height:34px;border:1px solid var(--line);border-radius:10px;background:#100d2b;color:#d8d4ef;font-size:20px}.modal-body{padding:18px 20px}.modal-error{margin:10px 0;padding:10px 12px;border-radius:10px;background:#45182a;color:#ffd8e0;border:1px solid #a53a56;font-size:11px}.toast{position:fixed;z-index:80;left:50%;bottom:22px;transform:translate(-50%,18px);max-width:min(94vw,560px);padding:12px 16px;border:1px solid #6158a9;border-radius:13px;background:#1c1745;box-shadow:var(--shadow);color:#f3f0ff;opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;font-size:12px}.toast.show{opacity:1;transform:translate(-50%,0)}.mobile-scrim{display:none}
+    @media(max-width:1100px){.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.plan-grid,.method-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.main{padding:0 22px 40px}}
+    @media(max-width:760px){.app-shell{display:block}.sidebar{position:fixed;left:0;top:0;width:278px;transform:translateX(-110%);transition:transform .15s ease;box-shadow:22px 0 65px #0008}.sidebar.open{transform:translateX(0)}.mobile-scrim.show{display:block;position:fixed;inset:0;z-index:20;background:#02010dcc}.hamburger{display:block}.main{padding:0 15px 34px}.topbar{min-height:72px}.head-title h1{font-size:18px}.head-title p{font-size:10px}.admin-chip span{display:none}.top-actions{gap:6px}.icon-btn{width:39px;height:39px}.page-head{align-items:flex-start;flex-direction:column}.page-head h2{font-size:21px}.dashboard-grid{grid-template-columns:1fr}.settings-grid{grid-template-columns:1fr}}
+    @media(max-width:520px){.main{padding-left:12px;padding-right:12px}.stats-grid{gap:9px}.stat-card{padding:13px;border-radius:16px}.stat-number{font-size:25px}.stat-label{font-size:9px}.stat-icon{width:33px;height:33px}.quick-grid,.plan-grid,.method-grid{grid-template-columns:1fr}.quick-card{padding:12px}.field-row{grid-template-columns:1fr;gap:0}.page-actions{width:100%}.page-actions .btn{flex:1}.modal-backdrop{padding:8px}.modal{border-radius:17px}.modal-body{padding:15px}.table{min-width:680px}}
+  </style>
+</head>
+<body>
+  <section id="gate" class="gate">
+    <form id="gateForm" class="gate-card">
+      <div class="brand-mark">B</div>
+      <h1>Private Admin Console</h1>
+      <p>Enter your admin password to continue.</p>
+      <input id="gatePassword" class="field" type="password" autocomplete="off" placeholder="Admin password" aria-label="Admin password">
+      <button class="btn" style="width:100%;margin-top:12px" type="submit">Unlock dashboard</button>
+      <div id="gateError" class="modal-error hidden">Incorrect password.</div>
+    </form>
+  </section>
+
+  <div id="appShell" class="app-shell hidden">
+    <aside id="sidebar" class="sidebar">
+      <div class="brand"><div class="brand-mark">B</div><div><span class="brand-name">BOTLOVA</span><span class="brand-sub">ADMIN CONTROL CENTER</span></div></div>
+      <div class="nav-label">Management</div>
+      <nav class="nav-list" aria-label="Admin sections">
+        <button class="nav-btn active" data-page="dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/></svg>Dashboard</button>
+        <button class="nav-btn" data-page="plans"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21z"/><path d="M4 5.5v13A2.5 2.5 0 0 1 6.5 16H20M8 7h8M8 10h6"/></svg>Packages</button>
+        <button class="nav-btn" data-page="orders"><svg viewBox="0 0 24 24"><path d="M7 3h10l3 3v15H4V3z"/><path d="M8 11h8M8 15h8M8 7h4"/><path d="m15 18 2 2 4-4"/></svg>Order Requests <span id="navPending" class="pill" style="margin-left:auto;padding:3px 7px">0</span></button>
+        <button class="nav-btn" data-page="methods"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18M7 15h4"/></svg>Payment Methods</button>
+      </nav>
+      <div class="sidebar-bottom"><div class="connection"><span class="live-dot"></span><span>Firestore connected</span></div><div class="sidebar-note">Billing data is stored in your Firebase project.</div></div>
+    </aside>
+    <div id="mobileScrim" class="mobile-scrim"></div>
+    <main class="main">
+      <header class="topbar">
+        <button id="menuToggle" class="hamburger" type="button" aria-label="Open menu"><span></span><span></span><span></span></button>
+        <div class="head-title"><h1 id="sectionTitle">Dashboard</h1><p id="sectionSubtitle">Subscription and payment operations at a glance.</p></div>
+        <div class="top-actions"><button id="settingsButton" class="icon-btn" type="button" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="m19.4 15 .1.1a1.8 1.8 0 0 1-2.5 2.5l-.1-.1a1.8 1.8 0 0 0-3 .9v.2a1.8 1.8 0 0 1-3.6 0v-.2a1.8 1.8 0 0 0-3-.9l-.1.1a1.8 1.8 0 0 1-2.5-2.5l.1-.1a1.8 1.8 0 0 0-.9-3h-.2a1.8 1.8 0 0 1 0-3.6h.2a1.8 1.8 0 0 0 .9-3l-.1-.1a1.8 1.8 0 0 1 2.5-2.5l.1.1a1.8 1.8 0 0 0 3-.9v-.2a1.8 1.8 0 0 1 3.6 0v.2a1.8 1.8 0 0 0 3 .9l.1-.1a1.8 1.8 0 0 1 2.5 2.5l-.1.1a1.8 1.8 0 0 0 .9 3h.2a1.8 1.8 0 0 1 0 3.6h-.2a1.8 1.8 0 0 0-.9 3Z"/></svg></button><div class="admin-chip"><div class="admin-avatar">A</div><span>Administrator</span></div><button id="lockButton" class="icon-btn" type="button" title="Lock panel" aria-label="Lock panel"><svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg></button></div>
+      </header>
+      <div class="content">
+        <section id="page-dashboard" class="page active">
+          <div class="page-head"><div><h2>Control room</h2><p>See your plans, payment methods, and incoming requests.</p></div><div class="page-actions"><button class="btn secondary" data-go="orders"><svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10"/></svg>Review requests</button></div></div>
+          <div class="stats-grid">
+            <article class="stat-card"><div class="stat-top"><span class="stat-label">Packages</span><span class="stat-icon"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21z"/><path d="M8 8h8M8 12h5"/></svg></span></div><strong id="statPlans" class="stat-number">—</strong><div class="stat-foot">Plans configured</div></article>
+            <article class="stat-card accent-amber"><div class="stat-top"><span class="stat-label">Pending requests</span><span class="stat-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span></div><strong id="statPending" class="stat-number">—</strong><div class="stat-foot">Waiting for review</div></article>
+            <article class="stat-card accent-green"><div class="stat-top"><span class="stat-label">Payment methods</span><span class="stat-icon"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18M7 15h4"/></svg></span></div><strong id="statMethods" class="stat-number">—</strong><div class="stat-foot">Available for checkout</div></article>
+            <article class="stat-card accent-cyan"><div class="stat-top"><span class="stat-label">User profiles</span><span class="stat-icon"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M3 20a6 6 0 0 1 12 0M16 5.5a3.5 3.5 0 0 1 0 6.8M17 15a5 5 0 0 1 4 5"/></svg></span></div><strong id="statUsers" class="stat-number">—</strong><div class="stat-foot">Registered profiles</div></article>
+          </div>
+          <div class="dashboard-grid">
+            <section class="surface"><div class="surface-head"><h3>Recent order requests</h3><button class="btn secondary small" data-go="orders">View all</button></div><div id="recentOrders" class="table-wrap"><div class="empty">Connecting to Firestore…</div></div></section>
+            <section class="surface"><div class="surface-head"><h3>Quick actions</h3></div><div class="surface-body"><div class="quick-grid"><button class="quick-card" data-action="new-plan"><span class="quick-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span><span><b>Create a package</b><small>Set price, limits and term</small></span></button><button class="quick-card" data-action="new-method"><span class="quick-icon"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18"/></svg></span><span><b>Add payment method</b><small>Set number and image</small></span></button><button class="quick-card" data-go="orders"><span class="quick-icon"><svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10"/></svg></span><span><b>Review orders</b><small>Approve or reject requests</small></span></button><button class="quick-card" data-go="settings"><span class="quick-icon"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="M19 12a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"/></svg></span><span><b>Panel settings</b><small>ImgBB key and backend URL</small></span></button></div><div id="dashboardNotice" class="security-note hidden"></div></div></section>
+          </div>
+        </section>
+
+        <section id="page-plans" class="page">
+          <div class="page-head"><div><h2>Packages</h2><p>Create unlimited hosting packages and set each account's resource limits and duration.</p></div><div class="page-actions"><button class="btn secondary" id="assignFreeButton"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Apply free plan to unassigned users</button><button class="btn" id="addPlanButton"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add package</button></div></div>
+          <div id="defaultFreeBanner" class="surface" style="padding:14px 16px;margin-bottom:15px;color:#c8c3e1;font-size:12px">Default free package: <b id="defaultFreeName">Not set</b><span class="muted"> · Set one package as the default free plan for new accounts.</span></div>
+          <div id="planCards" class="plan-grid"><div class="empty">Loading packages…</div></div>
+        </section>
+
+        <section id="page-orders" class="page">
+          <div class="page-head"><div><h2>Order requests</h2><p>Review pending payments and approve or reject each request.</p></div><div class="page-actions"><div class="filters"><button class="filter-btn active" data-filter="pending">Pending <span id="pendingCount">0</span></button><button class="filter-btn" data-filter="approved">Approved</button><button class="filter-btn" data-filter="rejected">Rejected</button><button class="filter-btn" data-filter="all">All</button></div></div></div>
+          <section class="surface"><div id="ordersTable" class="table-wrap"><div class="empty">Loading requests…</div></div></section>
+        </section>
+
+        <section id="page-methods" class="page">
+          <div class="page-head"><div><h2>Payment methods</h2><p>Add the payment instructions users will see when placing an order.</p></div><div class="page-actions"><button class="btn" id="addMethodButton"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Add payment method</button></div></div>
+          <div id="methodCards" class="method-grid"><div class="empty">Loading payment methods…</div></div>
+        </section>
+
+        <section id="page-settings" class="page">
+          <div class="page-head"><div><h2>Settings</h2><p>Configure image uploads and your selected bot-hosting backend.</p></div></div>
+          <div class="settings-grid">
+            <section class="surface settings-card"><h3>ImgBB image uploads</h3><p>Save your ImgBB key in this browser. It is used only when you upload a payment-method image and is not written to Firestore.</p><div class="input-wrap"><label for="imgbbKey">ImgBB API key</label><input id="imgbbKey" class="field" type="password" autocomplete="off" placeholder="Paste ImgBB API key"></div><div class="page-actions"><button class="btn" id="saveImgbbKey">Save key</button><button class="btn secondary" id="clearImgbbKey">Clear</button></div><div class="security-note">Image uploads use ImgBB's official POST API. API keys used in a browser are visible to that browser session; use this only on your private admin page.</div></section>
+            <section class="surface settings-card"><h3>Bot hosting backend</h3><p>Retains your existing Firebase setting. Enter an HTTPS origin only, without a path or query string.</p><div class="input-wrap"><label for="backendOrigin">Backend HTTPS origin</label><input id="backendOrigin" class="field" type="url" placeholder="https://your-host.example.com"></div><button id="saveBackend" class="btn">Save backend</button><div id="backendSaved" class="muted" style="margin-top:10px;font-size:11px">Loading current setting…</div></section>
+          </div>
+          <div class="security-note"><b>Access note:</b> the password gate in this standalone HTML is a convenience, not Firebase authorization. Keep this file private and configure Firestore Security Rules to restrict writes to admins. Never put a Firebase service-account private key in this file.</div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div id="modalBackdrop" class="modal-backdrop" role="presentation"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><header class="modal-head"><h2 id="modalTitle">Dialog</h2><button id="modalClose" class="modal-close" type="button" aria-label="Close">×</button></header><div id="modalBody" class="modal-body"></div></section></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script>
+    // This private file uses the existing Firebase Web configuration. It is not an Admin SDK key.
+    const ADMIN_PASS = '11223344';
+    const firebaseConfig = {
+      apiKey: 'AIzaSyCaMi91Dp6s7ydrKMO4DwfWcJXMaViG_d4',
+      authDomain: 'bot-36914.firebaseapp.com',
+      projectId: 'bot-36914',
+      storageBucket: 'bot-36914.firebasestorage.app',
+      messagingSenderId: '365558992881',
+      appId: '1:365558992881:web:cb801e341311d54685be50'
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const C = { plans: 'plans', methods: 'payment_methods', orders: 'order_requests', users: 'users', config: 'admin_config' };
+    const KEY_NAME = 'botlova_imgbb_api_key';
+    const state = { plans: [], methods: [], orders: [], users: [], billing: {}, filter: 'pending', unsubs: [], toastTimer: null, uploadUrl: '' };
+    const $ = (id) => document.getElementById(id);
+    const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const num = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+    const money = (value, currency = 'BDT') => {
+      const amount = num(value);
+      try { return new Intl.NumberFormat('en-BD', { style: 'currency', currency, maximumFractionDigits: 2 }).format(amount); }
+      catch (_) { return `${currency} ${amount.toFixed(2)}`; }
+    };
+    const dateOf = (value) => {
+      if (!value) return null;
+      if (value instanceof Date) return value;
+      if (typeof value.toDate === 'function') return value.toDate();
+      if (typeof value === 'number') return new Date(value);
+      const d = new Date(value);
+      return Number.isNaN(d.getTime()) ? null : d;
+    };
+    const dateText = (value) => { const d = dateOf(value); return d ? d.toLocaleString() : '—'; };
+    const toast = (message) => { const node = $('toast'); node.textContent = message; node.classList.add('show'); clearTimeout(state.toastTimer); state.toastTimer = setTimeout(() => node.classList.remove('show'), 3000); };
+    const showError = (message) => { const box = $('modalError'); if (box) { box.textContent = message; box.classList.remove('hidden'); } else toast(message); };
+    const nowServer = () => firebase.firestore.FieldValue.serverTimestamp();
+    const safeUrl = (value) => { try { const u = new URL(value); return u.protocol === 'https:' ? u.href : ''; } catch (_) { return ''; } };
+
+    function navigate(page) {
+      const valid = ['dashboard','plans','orders','methods','settings'].includes(page) ? page : 'dashboard';
+      document.querySelectorAll('.page').forEach((el) => el.classList.toggle('active', el.id === `page-${valid}`));
+      document.querySelectorAll('.nav-btn').forEach((el) => el.classList.toggle('active', el.dataset.page === valid));
+      const titles = { dashboard: ['Dashboard','Subscription and payment operations at a glance.'], plans: ['Packages','Manage plan pricing, quotas, and duration.'], orders: ['Order Requests','Review and process subscription payments.'], methods: ['Payment Methods','Manage the payment options available to users.'], settings: ['Settings','Configure image uploads and hosting preferences.'] };
+      $('sectionTitle').textContent = titles[valid][0]; $('sectionSubtitle').textContent = titles[valid][1];
+      $('sidebar').classList.remove('open'); $('mobileScrim').classList.remove('show');
+      if (valid === 'settings') loadSettings();
+    }
+    function openModal(title, content) { $('modalTitle').textContent = title; $('modalBody').innerHTML = content; $('modalBackdrop').classList.add('open'); document.body.style.overflow = 'hidden'; }
+    function closeModal() { $('modalBackdrop').classList.remove('open'); document.body.style.overflow = ''; $('modalBody').innerHTML = ''; state.uploadUrl = ''; }
+    function releaseListeners() { state.unsubs.forEach((fn) => { try { fn(); } catch (_) {} }); state.unsubs = []; }
+    function startListeners() {
+      releaseListeners();
+      state.unsubs.push(db.collection(C.plans).onSnapshot((snap) => { state.plans = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })); renderPlans(); renderStats(); renderDashboardOrders(); }, (err) => toast(`Packages: ${err.message}`)));
+      state.unsubs.push(db.collection(C.methods).onSnapshot((snap) => { state.methods = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })); renderMethods(); renderStats(); }, (err) => toast(`Payment methods: ${err.message}`)));
+      state.unsubs.push(db.collection(C.orders).onSnapshot((snap) => { state.orders = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })); state.orders.sort((a,b) => (dateOf(b.createdAt)?.getTime() || 0) - (dateOf(a.createdAt)?.getTime() || 0)); renderOrders(); renderDashboardOrders(); renderStats(); }, (err) => toast(`Order requests: ${err.message}`)));
+      state.unsubs.push(db.collection(C.users).onSnapshot((snap) => { state.users = snap.docs.filter((doc) => doc.id !== 'panel_config').map((doc) => ({ id: doc.id, ...doc.data() })); renderStats(); }, (err) => toast(`User profiles: ${err.message}`)));
+      state.unsubs.push(db.collection(C.config).doc('billing').onSnapshot((snap) => { state.billing = snap.exists ? snap.data() : {}; renderPlans(); renderStats(); }, (err) => toast(`Billing settings: ${err.message}`)));
+    }
+    function renderStats() {
+      $('statPlans').textContent = state.plans.length;
+      const pending = state.orders.filter((o) => statusOf(o) === 'pending').length;
+      $('statPending').textContent = pending; $('pendingCount').textContent = pending; $('navPending').textContent = pending;
+      $('statMethods').textContent = state.methods.length; $('statUsers').textContent = state.users.length;
+    }
+    function statusOf(order) { return String(order.status || 'pending').toLowerCase(); }
+    function planById(id) { return state.plans.find((p) => p.id === id); }
+    function durationLabel(plan) {
+      const unit = String(plan.durationUnit || (plan.lifetime ? 'lifetime' : 'days')).toLowerCase();
+      if (unit === 'lifetime') return 'Lifetime';
+      const value = num(plan.durationValue, 1);
+      const names = { days: ['day','days'], months: ['month','months'], years: ['year','years'] };
+      const pair = names[unit] || names.days;
+      return `${value} ${value === 1 ? pair[0] : pair[1]}`;
+    }
+    function priceText(plan) { return num(plan.price) === 0 || plan.isDefaultFree ? 'Free' : money(plan.price, plan.currency || 'BDT'); }
+    function renderPlans() {
+      const defaultId = state.billing.defaultFreePlanId || '';
+      const defaultPlan = planById(defaultId);
+      $('defaultFreeName').textContent = defaultPlan ? defaultPlan.name : (defaultId ? 'Plan not found (choose a replacement)' : 'Not set');
+      const root = $('planCards');
+      if (!state.plans.length) { root.innerHTML = '<div class="empty" style="grid-column:1/-1"><b>No packages yet</b>Create your first package with the Add package button.</div>'; return; }
+      const list = [...state.plans].sort((a,b) => Number(Boolean(b.id === defaultId)) - Number(Boolean(a.id === defaultId)) || (dateOf(b.createdAt)?.getTime() || 0) - (dateOf(a.createdAt)?.getTime() || 0));
+      root.innerHTML = list.map((p) => {
+        const isDefault = p.id === defaultId;
+        const features = Array.isArray(p.features) ? p.features : String(p.features || '').split('\n').map((x) => x.trim()).filter(Boolean);
+        return `<article class="plan-card ${isDefault ? 'default' : ''}"><div class="plan-top"><div><h3 class="plan-name">${esc(p.name || 'Unnamed package')}</h3><p class="plan-description">${esc(p.description || 'Bot hosting package')}</p></div><span class="pill ${isDefault ? 'free' : ''}">${isDefault ? 'Default free' : esc(durationLabel(p))}</span></div><div class="price">${esc(priceText(p))}<small>${num(p.price) ? ` / ${esc(durationLabel(p))}` : ` · ${esc(durationLabel(p))}`}</small></div><div class="plan-limits"><div class="limit"><b>${esc(num(p.maxBots))}</b><small>Hosted bots</small></div><div class="limit"><b>${esc(num(p.ramGiB))} GB</b><small>RAM limit</small></div><div class="limit"><b>${esc(num(p.storageGiB))} GB</b><small>Storage limit</small></div><div class="limit"><b>${esc(durationLabel(p))}</b><small>Validity</small></div></div><ul class="feature-list">${(features.length ? features : ['Limits apply to each account']).slice(0,5).map((f) => `<li>${esc(f)}</li>`).join('')}</ul><div class="card-actions"><button class="btn secondary small" data-action="edit-plan" data-id="${esc(p.id)}">Edit</button><button class="btn danger small" data-action="delete-plan" data-id="${esc(p.id)}">Delete</button></div></article>`;
+      }).join('');
+    }
+    function renderMethods() {
+      const root = $('methodCards');
+      if (!state.methods.length) { root.innerHTML = '<div class="empty" style="grid-column:1/-1"><b>No payment methods</b>Add a method users can select when ordering a package.</div>'; return; }
+      root.innerHTML = [...state.methods].sort((a,b) => String(a.name||'').localeCompare(String(b.name||''))).map((m) => {
+        const img = safeUrl(m.imageUrl || m.image || '');
+        return `<article class="method-card"><div class="method-image">${img ? `<img src="${esc(img)}" alt="${esc(m.name || 'Payment method')}" loading="lazy">` : '<div class="image-placeholder"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 15-5-5L5 20"/></svg>No image added</div>'}</div><div class="method-info"><h3>${esc(m.name || 'Payment method')}</h3><div class="method-number"><span>${esc(m.number || m.accountNumber || 'No number')}</span><button class="icon-btn" style="width:31px;height:31px" data-action="copy" data-copy="${esc(m.number || m.accountNumber || '')}" title="Copy number" aria-label="Copy number"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button></div><p class="method-desc">${esc(m.description || 'No extra payment instructions.')}</p><div class="card-actions"><button class="btn secondary small" data-action="edit-method" data-id="${esc(m.id)}">Edit</button><button class="btn danger small" data-action="delete-method" data-id="${esc(m.id)}">Delete</button></div></div></article>`;
+      }).join('');
+    }
+    function renderOrders() {
+      const filtered = state.filter === 'all' ? state.orders : state.orders.filter((o) => statusOf(o) === state.filter);
+      if (!filtered.length) { $('ordersTable').innerHTML = `<div class="empty"><b>No ${state.filter === 'all' ? '' : `${esc(state.filter)} `}requests</b>Order requests will appear here when users submit them.</div>`; return; }
+      $('ordersTable').innerHTML = `<table class="table"><thead><tr><th>User</th><th>Package</th><th>Amount</th><th>Payment</th><th>Transaction ID</th><th>Submitted</th><th>Status</th><th>Action</th></tr></thead><tbody>${filtered.map((o) => {
+        const status = statusOf(o); const cls = ['approved','rejected'].includes(status) ? status : 'pending';
+        const email = o.userEmail || o.email || o.user || '—'; const pkg = o.planName || planById(o.planId)?.name || o.packageName || '—';
+        const amount = o.amount ?? o.price ?? o.total ?? 0; const method = o.methodName || o.paymentMethodName || o.method || '—'; const txid = o.transactionId || o.trxId || o.transaction_id || '—';
+        return `<tr><td><span class="cell-main">${esc(o.userName || o.name || email)}</span><span class="cell-sub">${esc(email)}${o.uid ? ` · ${esc(o.uid)}` : ''}</span></td><td><span class="cell-main">${esc(pkg)}</span><span class="cell-sub">${esc(o.planId || '')}</span></td><td>${esc(money(amount, o.currency || 'BDT'))}</td><td>${esc(method)}<span class="cell-sub">${esc(o.methodNumber || o.paymentNumber || '')}</span></td><td><span class="cell-main">${esc(txid)}</span></td><td>${esc(dateText(o.createdAt || o.requestedAt))}</td><td><span class="status ${cls}">${esc(status)}</span></td><td>${status === 'pending' ? `<div class="table-actions"><button class="btn success small" data-action="approve-order" data-id="${esc(o.id)}">Approve</button><button class="btn danger small" data-action="reject-order" data-id="${esc(o.id)}">Reject</button></div>` : '<span class="muted">Reviewed</span>'}</td></tr>`;
+      }).join('')}</tbody></table>`;
+    }
+    function renderDashboardOrders() {
+      const list = state.orders.slice(0,5);
+      if (!list.length) { $('recentOrders').innerHTML = '<div class="empty"><b>No order activity yet</b>New requests will appear here.</div>'; return; }
+      $('recentOrders').innerHTML = `<table class="table" style="min-width:620px"><thead><tr><th>User</th><th>Package</th><th>Amount</th><th>Status</th></tr></thead><tbody>${list.map((o) => { const s=statusOf(o); return `<tr><td><span class="cell-main">${esc(o.userName || o.userEmail || o.email || o.uid || 'User')}</span><span class="cell-sub">${esc(dateText(o.createdAt || o.requestedAt))}</span></td><td>${esc(o.planName || planById(o.planId)?.name || o.packageName || '—')}</td><td>${esc(money(o.amount ?? o.price ?? 0,o.currency||'BDT'))}</td><td><span class="status ${['approved','rejected'].includes(s)?s:'pending'}">${esc(s)}</span></td></tr>`; }).join('')}</tbody></table>`;
+    }
+    function openPlanForm(id = '') {
+      const p = id ? planById(id) : null;
+      const defaultId = state.billing.defaultFreePlanId || '';
+      const isDefault = p ? defaultId === p.id : false;
+      const durationUnit = p?.durationUnit || (p?.lifetime ? 'lifetime' : 'days');
+      openModal(id ? 'Edit package' : 'Create package', `<form id="planForm"><div class="field-row"><div class="input-wrap"><label>Package name *</label><input class="field" name="name" required maxlength="80" value="${esc(p?.name || '')}" placeholder="Starter"></div><div class="input-wrap"><label>Price (BDT) *</label><input class="field" name="price" type="number" min="0" step="0.01" required value="${esc(p?.price ?? (isDefault ? 0 : ''))}" placeholder="0"></div></div><div class="input-wrap"><label>Short description</label><input class="field" name="description" maxlength="180" value="${esc(p?.description || '')}" placeholder="A short line about this package"></div><div class="field-row"><div class="input-wrap"><label>Maximum hosted bots *</label><input class="field" name="maxBots" type="number" min="0" step="1" required value="${esc(p?.maxBots ?? 1)}"></div><div class="input-wrap"><label>RAM limit (GB) *</label><input class="field" name="ramGiB" type="number" min="0.1" step="0.1" required value="${esc(p?.ramGiB ?? 1)}"></div></div><div class="field-row"><div class="input-wrap"><label>Storage limit (GB) *</label><input class="field" name="storageGiB" type="number" min="0.1" step="0.1" required value="${esc(p?.storageGiB ?? 1)}"></div><div class="input-wrap"><label>Currency code</label><select class="field" name="currency"><option value="BDT" ${(!p?.currency || p.currency==='BDT')?'selected':''}>BDT · Bangladeshi Taka</option><option value="USD" ${p?.currency==='USD'?'selected':''}>USD · US Dollar</option></select></div></div><div class="field-row"><div class="input-wrap"><label>Validity unit *</label><select class="field" id="durationUnit" name="durationUnit"><option value="days" ${durationUnit==='days'?'selected':''}>Days</option><option value="months" ${durationUnit==='months'?'selected':''}>Months</option><option value="years" ${durationUnit==='years'?'selected':''}>Years</option><option value="lifetime" ${durationUnit==='lifetime'?'selected':''}>Lifetime</option></select></div><div class="input-wrap" id="durationValueWrap"><label>Validity amount *</label><input class="field" name="durationValue" id="durationValue" type="number" min="1" step="1" value="${esc(p?.durationValue ?? 30)}"></div></div><div class="checkbox-line"><input id="isDefaultFree" name="isDefaultFree" type="checkbox" ${isDefault?'checked':''}><label for="isDefaultFree"><b>Set as the default Free package</b><small>This marks the package as free and saves its ID for new user accounts. Choose only one default.</small></label></div><div class="input-wrap"><label>Included features (one per line)</label><textarea class="field field-area" name="features" placeholder="Python, Node.js, PHP support">${esc(Array.isArray(p?.features)?p.features.join('\n'):(p?.features||''))}</textarea></div><div id="modalError" class="modal-error hidden"></div><div class="save-row"><button class="btn secondary" type="button" data-close>Cancel</button><button class="btn" type="submit">Save package</button></div></form>`);
+      const unit = $('durationUnit'), wrap = $('durationValueWrap'), qty = $('durationValue'), free = $('isDefaultFree'), price = $('planForm').elements.price;
+      const sync = () => { const lifetime = unit.value === 'lifetime'; wrap.classList.toggle('hidden', lifetime); qty.required = !lifetime; if (free.checked) price.value = '0'; price.disabled = free.checked; };
+      unit.addEventListener('change', sync); free.addEventListener('change', sync); sync();
+      $('planForm').addEventListener('submit', savePlan);
+    }
+    async function savePlan(event) {
+      event.preventDefault(); const form = event.currentTarget; const data = new FormData(form); const existing = $('modalTitle').textContent === 'Edit package';
+      const oldId = existing ? form.dataset.id : '';
+      const isDefaultFree = $('isDefaultFree').checked; const durationUnit = String(data.get('durationUnit'));
+      const plan = { name:String(data.get('name')).trim(), description:String(data.get('description')||'').trim(), price:isDefaultFree?0:num(data.get('price')), currency:String(data.get('currency')||'BDT'), maxBots:Math.max(0,Math.floor(num(data.get('maxBots')))), ramGiB:Math.max(0,num(data.get('ramGiB'))), storageGiB:Math.max(0,num(data.get('storageGiB'))), durationUnit, durationValue:durationUnit==='lifetime'?null:Math.max(1,Math.floor(num(data.get('durationValue'),1))), isDefaultFree, features:String(data.get('features')||'').split('\n').map((x)=>x.trim()).filter(Boolean), updatedAt:nowServer() };
+      if (!plan.name) return showError('Enter a package name.');
+      const submit = form.querySelector('[type="submit"]'); submit.disabled = true;
+      try {
+        const ref = oldId ? db.collection(C.plans).doc(oldId) : db.collection(C.plans).doc();
+        if (!oldId) plan.createdAt = nowServer();
+        await ref.set(plan,{merge:true});
+        if (isDefaultFree) {
+          const previous = state.billing.defaultFreePlanId;
+          if (previous && previous !== ref.id) await db.collection(C.plans).doc(previous).set({isDefaultFree:false,updatedAt:nowServer()},{merge:true});
+          await db.collection(C.config).doc('billing').set({defaultFreePlanId:ref.id,defaultFreePlanName:plan.name,updatedAt:nowServer()},{merge:true});
+        } else if (state.billing.defaultFreePlanId === ref.id) {
+          await db.collection(C.config).doc('billing').set({defaultFreePlanId:null,defaultFreePlanName:null,updatedAt:nowServer()},{merge:true});
+        }
+        closeModal(); toast('Package saved.');
+      } catch (error) { showError(error.message || 'Could not save package.'); submit.disabled = false; }
+    }
+    async function deletePlan(id) {
+      const p = planById(id); if (!p || !confirm(`Delete “${p.name}”? Existing orders and user records will not be deleted.`)) return;
+      try { await db.collection(C.plans).doc(id).delete(); if (state.billing.defaultFreePlanId === id) await db.collection(C.config).doc('billing').set({defaultFreePlanId:null,defaultFreePlanName:null,updatedAt:nowServer()},{merge:true}); toast('Package deleted.'); }
+      catch (error) { toast(`Could not delete package: ${error.message}`); }
+    }
+    function expiryFor(plan, start = new Date()) {
+      const unit = String(plan.durationUnit || 'lifetime').toLowerCase();
+      if (unit === 'lifetime') return null;
+      const amount = Math.max(1,Math.floor(num(plan.durationValue,1))); const end = new Date(start);
+      if (unit === 'days') end.setDate(end.getDate()+amount); else if (unit === 'months') end.setMonth(end.getMonth()+amount); else if (unit === 'years') end.setFullYear(end.getFullYear()+amount); else return null;
+      return firebase.firestore.Timestamp.fromDate(end);
+    }
+    async function reviewOrder(id, decision) {
+      const orderRef = db.collection(C.orders).doc(id); const approved = decision === 'approved';
+      if (!confirm(`${approved?'Approve':'Reject'} this order request?${approved?' This will activate the package on the user profile.':''}`)) return;
+      try {
+        await db.runTransaction(async (tx) => {
+          const orderSnap = await tx.get(orderRef); if (!orderSnap.exists) throw new Error('Order request no longer exists.');
+          const order = orderSnap.data(); if (statusOf(order) !== 'pending') throw new Error('This order has already been reviewed.');
+          const updates = { status:decision, reviewedAt:nowServer(), reviewedBy:'admin', updatedAt:nowServer() };
+          if (approved) {
+            const planId = order.planId || order.packageId; const uid = order.uid || order.userId;
+            if (!uid || uid === 'panel_config') throw new Error('This request has no valid Firebase user UID.');
+            if (!planId) throw new Error('This request has no package ID.');
+            const planRef = db.collection(C.plans).doc(String(planId)); const userRef = db.collection(C.users).doc(String(uid));
+            const planSnap = await tx.get(planRef); if (!planSnap.exists) throw new Error('The package for this request no longer exists.');
+            const userSnap = await tx.get(userRef); if (!userSnap.exists) throw new Error('No users/{uid} profile exists for this request.');
+            const plan = planSnap.data(); const started = firebase.firestore.Timestamp.now(); const end = expiryFor(plan,started.toDate());
+            tx.set(userRef,{activePlanId:planRef.id,activePlanName:plan.name||order.planName||'Package',planStatus:'active',planStartedAt:started,planExpiresAt:end,maxBots:num(plan.maxBots),ramGiB:num(plan.ramGiB),storageGiB:num(plan.storageGiB),updatedAt:nowServer()},{merge:true});
+          }
+          tx.update(orderRef,updates);
+        });
+        toast(approved?'Order approved and package activated.':'Order rejected.');
+      } catch (error) { toast(`Could not review request: ${error.message}`); }
+    }
+    function openMethodForm(id = '') {
+      const m = id ? state.methods.find((x)=>x.id===id) : null; state.uploadUrl = m?.imageUrl || m?.image || '';
+      const current = safeUrl(state.uploadUrl);
+      openModal(id?'Edit payment method':'Add payment method',`<form id="methodForm" data-id="${esc(id)}"><div class="field-row"><div class="input-wrap"><label>Method name *</label><input class="field" name="name" required maxlength="70" value="${esc(m?.name||'')}" placeholder="bKash"></div><div class="input-wrap"><label>Payment number/account *</label><input class="field" name="number" required maxlength="100" value="${esc(m?.number||m?.accountNumber||'')}" placeholder="01XXXXXXXXX"></div></div><div class="input-wrap"><label>Method image (optional)</label><input class="field" id="methodImage" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><small class="muted">ImgBB accepts images up to 32 MB. Uploads go directly from this browser.</small><div id="imagePreviewWrap">${current?`<img class="preview" src="${esc(current)}" alt="Current payment method image">`:''}</div></div><div class="input-wrap"><label>Payment instructions / description (optional)</label><textarea class="field field-area" name="description" maxlength="500" placeholder="Optional instructions for the user">${esc(m?.description||'')}</textarea></div><div id="modalError" class="modal-error hidden"></div><div class="save-row"><button class="btn secondary" type="button" data-close>Cancel</button><button class="btn" type="submit">Save method</button></div></form>`);
+      $('methodImage').addEventListener('change',previewMethodImage); $('methodForm').addEventListener('submit',saveMethod);
+    }
+    function previewMethodImage(event) {
+      const file = event.target.files[0]; if (!file) return;
+      if (!file.type.startsWith('image/')) { showError('Choose an image file.'); event.target.value=''; return; }
+      if (file.size > 32*1024*1024) { showError('ImgBB image upload limit is 32 MB.'); event.target.value=''; return; }
+      const url = URL.createObjectURL(file); $('imagePreviewWrap').innerHTML = `<img class="preview" src="${url}" alt="Selected image preview">`;
+    }
+    async function uploadToImgBB(file) {
+      const key = localStorage.getItem(KEY_NAME) || ''; if (!key.trim()) throw new Error('Save your ImgBB API key in Settings before uploading an image.');
+      const form = new FormData(); form.append('image',file,file.name);
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${encodeURIComponent(key.trim())}`,{method:'POST',body:form});
+      let data; try { data=await response.json(); } catch (_) { throw new Error('ImgBB returned an unreadable response.'); }
+      if (!response.ok || !data.success || !data.data?.url) throw new Error(data.error?.message || `ImgBB upload failed (HTTP ${response.status}).`);
+      return data.data.display_url || data.data.url;
+    }
+    async function saveMethod(event) {
+      event.preventDefault(); const form=event.currentTarget; const data=new FormData(form); const submit=form.querySelector('[type="submit"]'); submit.disabled=true;
+      try {
+        const file=$('methodImage').files[0]; let imageUrl=state.uploadUrl;
+        if(file){ submit.innerHTML='Uploading image…'; imageUrl=await uploadToImgBB(file); }
+        submit.innerHTML='Saving…'; const id=form.dataset.id; const ref=id?db.collection(C.methods).doc(id):db.collection(C.methods).doc();
+        const method={name:String(data.get('name')).trim(),number:String(data.get('number')).trim(),imageUrl:imageUrl||'',description:String(data.get('description')||'').trim(),updatedAt:nowServer()};
+        if(!method.name||!method.number)throw new Error('Method name and payment number are required.');
+        if(!id)method.createdAt=nowServer(); await ref.set(method,{merge:true}); closeModal(); toast('Payment method saved.');
+      }catch(error){showError(error.message||'Could not save payment method.');submit.disabled=false;submit.innerHTML='Save method';}
+    }
+    async function deleteMethod(id) { const m=state.methods.find((x)=>x.id===id); if(!m||!confirm(`Delete payment method “${m.name}”?`))return; try{await db.collection(C.methods).doc(id).delete();toast('Payment method deleted.')}catch(error){toast(`Could not delete method: ${error.message}`)} }
+    async function assignFreePlan() {
+      const id=state.billing.defaultFreePlanId; const plan=planById(id);
+      if(!plan){toast('Set a default Free package first.');return;}
+      const targets=state.users.filter((u)=>u.id!=='panel_config'&&!u.activePlanId&&!u.planId&&!u.plan);
+      if(!targets.length){toast('No unassigned user profiles found.');return;}
+      if(!confirm(`Assign “${plan.name}” to ${targets.length} existing user profile(s) with no package? This only updates users/{uid} profiles.`))return;
+      const start=firebase.firestore.Timestamp.now(); const expiry=expiryFor(plan,start.toDate());
+      try{
+        for(let i=0;i<targets.length;i+=450){const batch=db.batch();targets.slice(i,i+450).forEach((u)=>batch.set(db.collection(C.users).doc(u.id),{activePlanId:plan.id,activePlanName:plan.name,planStatus:'active',planStartedAt:start,planExpiresAt:expiry,maxBots:num(plan.maxBots),ramGiB:num(plan.ramGiB),storageGiB:num(plan.storageGiB),updatedAt:nowServer()},{merge:true}));await batch.commit();}
+        toast(`Default Free package assigned to ${targets.length} user profile(s).`);
+      }catch(error){toast(`Could not assign the default plan: ${error.message}`)}
+    }
+    function validOrigin(value) { try { const u=new URL(value.trim()); return u.protocol==='https:'&&!u.username&&!u.password&&!u.search&&!u.hash&&['','/'].includes(u.pathname)?u.origin:''; } catch (_) { return ''; } }
+    async function loadSettings() {
+      $('imgbbKey').value=localStorage.getItem(KEY_NAME)||'';
+      $('backendSaved').textContent='Loading current setting…';
+      try { const snap=await db.collection(C.users).doc('panel_config').get(); const origin=snap.exists?(snap.data().backendOrigin||''):''; $('backendOrigin').value=origin; $('backendSaved').textContent=origin?`Current backend: ${origin}`:'No backend origin saved yet.'; }
+      catch(error){$('backendSaved').textContent=`Could not read current setting: ${error.message}`;}
+    }
+    async function saveBackend() {
+      const origin=validOrigin($('backendOrigin').value); if(!origin){toast('Enter a valid HTTPS origin only.');return;}
+      try { await db.collection(C.users).doc('panel_config').set({uid:'panel_config',type:'panel_config',backendOrigin:origin,updatedAt:Date.now()},{merge:true}); $('backendOrigin').value=origin; $('backendSaved').textContent=`Current backend: ${origin}`; toast('Backend origin saved.'); }
+      catch(error){toast(`Could not save backend: ${error.message}`);}
+    }
+    async function copyText(value) { if(!value){toast('Nothing to copy.');return;} try { if(navigator.clipboard?.writeText) await navigator.clipboard.writeText(value); else { const area=document.createElement('textarea');area.value=value;document.body.appendChild(area);area.select();document.execCommand('copy');area.remove();} toast('Copied to clipboard.'); } catch(_){toast('Clipboard access was denied.');} }
+    function startPanel() {
+      $('gate').classList.add('hidden'); $('appShell').classList.remove('hidden'); startListeners();
+      if(localStorage.getItem(KEY_NAME)) $('imgbbKey').value=localStorage.getItem(KEY_NAME);
+    }
+    function lockPanel() { releaseListeners(); $('appShell').classList.add('hidden'); $('gate').classList.remove('hidden'); $('gatePassword').value=''; sessionStorage.removeItem('botlova_admin_open'); }
+
+    $('gateForm').addEventListener('submit',(event)=>{event.preventDefault();if($('gatePassword').value===ADMIN_PASS){$('gateError').classList.add('hidden');sessionStorage.setItem('botlova_admin_open','1');startPanel();}else{$('gateError').classList.remove('hidden');$('gatePassword').value='';$('gatePassword').focus();}});
+    document.querySelectorAll('.nav-btn').forEach((button)=>button.addEventListener('click',()=>navigate(button.dataset.page)));
+    document.querySelectorAll('[data-go]').forEach((button)=>button.addEventListener('click',()=>navigate(button.dataset.go)));
+    $('settingsButton').addEventListener('click',()=>navigate('settings')); $('lockButton').addEventListener('click',lockPanel);
+    $('menuToggle').addEventListener('click',()=>{$('sidebar').classList.toggle('open');$('mobileScrim').classList.toggle('show');}); $('mobileScrim').addEventListener('click',()=>{$('sidebar').classList.remove('open');$('mobileScrim').classList.remove('show');});
+    $('addPlanButton').addEventListener('click',()=>openPlanForm()); $('addMethodButton').addEventListener('click',()=>openMethodForm()); $('assignFreeButton').addEventListener('click',assignFreePlan);
+    $('modalClose').addEventListener('click',closeModal); $('modalBackdrop').addEventListener('click',(event)=>{if(event.target===$('modalBackdrop'))closeModal();}); document.addEventListener('keydown',(event)=>{if(event.key==='Escape')closeModal();});
+    document.querySelectorAll('.filter-btn').forEach((button)=>button.addEventListener('click',()=>{state.filter=button.dataset.filter;document.querySelectorAll('.filter-btn').forEach((b)=>b.classList.toggle('active',b===button));renderOrders();}));
+    $('planCards').addEventListener('click',(event)=>{const btn=event.target.closest('[data-action]');if(!btn)return;if(btn.dataset.action==='edit-plan'){openPlanForm(btn.dataset.id);const form=$('planForm');form.dataset.id=btn.dataset.id;}if(btn.dataset.action==='delete-plan')deletePlan(btn.dataset.id);});
+    $('methodCards').addEventListener('click',(event)=>{const btn=event.target.closest('[data-action]');if(!btn)return;if(btn.dataset.action==='edit-method')openMethodForm(btn.dataset.id);if(btn.dataset.action==='delete-method')deleteMethod(btn.dataset.id);if(btn.dataset.action==='copy')copyText(btn.dataset.copy||'');});
+    $('ordersTable').addEventListener('click',(event)=>{const btn=event.target.closest('[data-action]');if(!btn)return;if(btn.dataset.action==='approve-order')reviewOrder(btn.dataset.id,'approved');if(btn.dataset.action==='reject-order')reviewOrder(btn.dataset.id,'rejected');});
+    $('saveImgbbKey').addEventListener('click',()=>{const value=$('imgbbKey').value.trim();if(!value){toast('Paste an ImgBB API key or use Clear.');return;}localStorage.setItem(KEY_NAME,value);toast('ImgBB key saved in this browser.');});
+    $('clearImgbbKey').addEventListener('click',()=>{localStorage.removeItem(KEY_NAME);$('imgbbKey').value='';toast('ImgBB key removed from this browser.');}); $('saveBackend').addEventListener('click',saveBackend);
+    document.addEventListener('click',(event)=>{const button=event.target.closest('[data-action="new-plan"],[data-action="new-method"]');if(!button)return;if(button.dataset.action==='new-plan')openPlanForm();else openMethodForm();});
+    document.addEventListener('click',(event)=>{const close=event.target.closest('[data-close]');if(close)closeModal();});
+    if(sessionStorage.getItem('botlova_admin_open')==='1')startPanel();
+  </script>
+</body>
+</html>

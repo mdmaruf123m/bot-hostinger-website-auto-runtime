@@ -28,6 +28,26 @@ async function enter(user) {
       status: "Active",
       createdAt: Date.now(),
     };
+    try {
+      const billing = await db.collection("admin_config").doc("billing").get();
+      const freeId = billing.exists ? billing.data().defaultFreePlanId : "";
+      if (freeId) {
+        const plan = await db.collection("plans").doc(freeId).get();
+        if (plan.exists) {
+          const data = plan.data();
+          profile.activePlanId = freeId;
+          profile.activePlanName = data.name || "Free package";
+          profile.planStatus = "active";
+          profile.planStartedAt = firebase.firestore.FieldValue.serverTimestamp();
+          profile.planExpiresAt = null;
+          profile.maxBots = Number(data.maxBots) || 0;
+          profile.ramGiB = Number(data.ramGiB) || 0;
+          profile.storageGiB = Number(data.storageGiB) || 0;
+        }
+      }
+    } catch (_) {
+      // Account creation should still succeed if billing setup is not ready yet.
+    }
     await ref.set(profile);
   }
   location.replace("/dashboard");

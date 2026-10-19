@@ -5,43 +5,40 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#050217" />
     <title>Plans · MY HOST PANEL</title>
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="/css/app.css" />
   </head>
   <body>
-    <main class="wrap">
+    <main class="wrap plan-page">
       <div id="accountMenuMount"></div>
-      <section class="heading">
-        <div>
-          <h1>Plans</h1>
-          <p class="muted">View your hosting plan and account access.</p>
-        </div>
+      <section class="heading plan-heading">
+        <div><span class="plan-kicker">SUBSCRIPTION CENTER</span><h1>Choose your plan</h1><p class="muted">Upgrade your hosting limits with a package that fits your bots.</p></div>
       </section>
-      <section class="surface-card plan-panel">
-        <div class="plan-orb">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m12 3 9 5-9 5-9-5 9-5Z" />
-            <path d="m3 12 9 5 9-5M3 16l9 5 9-5M12 13v8" />
-          </svg>
-        </div>
-        <span class="plan-eyebrow">PLAN MANAGEMENT</span>
-        <h2>Plans are not enabled yet</h2>
-        <p class="muted">
-          This panel does not have plan or billing management configured.
-          Contact the panel administrator for information about your access.
-        </p>
-        <a class="btn outline" href="/dashboard"
-          ><i class="fa-solid fa-arrow-left"></i> Back to dashboard</a
-        >
-      </section>
+      <section id="activePlanCard" class="active-plan-card" aria-live="polite"></section>
+      <div id="planNotice" class="plan-notice" role="status"></div>
+      <section id="planGrid" class="user-plan-grid" aria-live="polite"><div class="plan-loading"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading packages…</div></section>
     </main>
+    <div id="orderBackdrop" class="order-backdrop" hidden>
+      <section class="order-modal" role="dialog" aria-modal="true" aria-labelledby="orderTitle">
+        <button id="closeOrder" class="order-close" type="button" aria-label="Close">&times;</button>
+        <div class="order-modal-head"><span class="order-icon"><i class="fa-solid fa-receipt"></i></span><div><span class="plan-kicker">PACKAGE ORDER</span><h2 id="orderTitle">Order package</h2><p class="muted">Complete the payment and submit your transaction ID.</p></div></div>
+        <form id="orderForm" class="order-form">
+          <input id="orderPlanId" type="hidden" />
+          <div class="order-summary"><div><span>Package</span><b id="orderPlanName">—</b></div><div class="order-amount"><span>Total amount</span><b id="orderAmount">—</b></div></div>
+          <label>Payment method<select id="paymentMethod" required><option value="">Select a payment method</option></select></label>
+          <div id="paymentDetails" class="payment-details empty-payment">Select a method to view payment instructions.</div>
+          <label>Transaction ID<input id="transactionId" required maxlength="120" placeholder="Enter your transaction ID" autocomplete="off" /></label>
+          <p id="orderError" class="order-error" role="alert"></p>
+          <div class="order-actions"><button id="cancelOrder" class="btn outline" type="button">Cancel</button><button id="submitOrder" class="btn" type="submit"><i class="fa-solid fa-paper-plane"></i> Submit request</button></div>
+        </form>
+      </section>
+    </div>
+    <div id="copyToast" class="copy-toast" role="status"></div>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <script src="/js/firebase-init.js"></script>
     <script src="/js/common.js"></script>
+    <script src="/js/plan.js"></script>
   </body>
 </html>

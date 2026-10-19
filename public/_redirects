@@ -1,5 +1,6 @@
 /login/ /login 302
 /register/ /register 302
 /dashboard/ /dashboard 302
+/admin /admin.html 200
 /plans /plan 302
 /settings/ /settings 302
