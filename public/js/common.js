@@ -104,7 +104,31 @@
     const userRef = db.collection("users").doc(user.uid);
     const profileSnap = await userRef.get();
     const profile = profileSnap.exists ? profileSnap.data() : {};
-    if (profile.activePlanId || profile.planId || profile.plan) return;
+    if (profile.activePlanId) {
+      const activePlanSnap = await db.collection("plans").doc(String(profile.activePlanId)).get();
+      if (activePlanSnap.exists) {
+        const activePlan = activePlanSnap.data();
+        const currentRam = Number(activePlan.ramBytes) || (Number(activePlan.ramGiB) || 0) * 1024 ** 3;
+        const currentStorage = Number(activePlan.storageBytes) || (Number(activePlan.storageGiB) || 0) * 1024 ** 3;
+        const changed = Number(profile.maxBots) !== (Number(activePlan.maxBots) || 0)
+          || Number(profile.ramBytes || 0) !== currentRam
+          || Number(profile.storageBytes || 0) !== currentStorage
+          || profile.activePlanName !== activePlan.name;
+        if (changed) {
+          await userRef.set({
+            activePlanName: activePlan.name || profile.activePlanName || "Package",
+            maxBots: Number(activePlan.maxBots) || 0,
+            ramGiB: Number(activePlan.ramGiB) || currentRam / (1024 ** 3),
+            storageGiB: Number(activePlan.storageGiB) || currentStorage / (1024 ** 3),
+            ramBytes: currentRam,
+            storageBytes: currentStorage,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          }, { merge: true });
+        }
+      }
+      return;
+    }
+    if (profile.planId || profile.plan) return;
     const billingSnap = await db.collection("admin_config").doc("billing").get();
     const freeId = billingSnap.exists ? billingSnap.data().defaultFreePlanId : "";
     if (!freeId) return;
