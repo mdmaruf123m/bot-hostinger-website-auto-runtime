@@ -147,6 +147,7 @@ def get_user_concurrency_limit(db, email):
 def get_user_plan_limits():
     raw = session.get("plan_limits") or {}
     return {
+        "configured": bool(session.get("plan_limits_configured")),
         "maxBots": max(0, int(float(raw.get("maxBots", 0) or 0))),
         "ramBytes": max(0, int(float(raw.get("ramBytes", 0) or 0))),
         "storageBytes": max(0, int(float(raw.get("storageBytes", 0) or 0))),
@@ -742,8 +743,10 @@ def start_app_process(user, name, db):
     settings = get_app_settings(db, user, name)
 
     plan_limits = get_user_plan_limits()
+    if not plan_limits["configured"]:
+        return {"ok": False, "error": "Your package limits are not available yet. Refresh the website and sign in again."}
     total_apps = sum(1 for item in os.listdir(safe_join(UPLOAD_FOLDER, user)) if os.path.isdir(safe_join(UPLOAD_FOLDER, user, item)))
-    if plan_limits["maxBots"] and total_apps > plan_limits["maxBots"]:
+    if total_apps > plan_limits["maxBots"]:
         return {"ok": False, "error": f"Your package allows {plan_limits['maxBots']} hosted bot(s). Remove an extra bot or upgrade your package."}
 
     # concurrency guards (soft, configurable — not meant to block normal usage)
@@ -858,7 +861,7 @@ def start_app_process(user, name, db):
     log_file = open(log_path, "a", encoding="utf-8", errors="ignore")
     try:
         preexec = None
-        if os.name == "posix" and plan_limits["ramBytes"] > 0:
+        if os.name == "posix" and plan_limits["configured"]:
             memory_limit = plan_limits["ramBytes"]
             def limit_process_memory():
                 resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
@@ -870,7 +873,7 @@ def start_app_process(user, name, db):
         return {"ok": False, "error": str(e)}
 
     processes[key] = proc
-    proc_meta[key] = {"device": device, "started": time.time(), "restarts": proc_meta.get(key, {}).get("restarts", 0)}
+    proc_meta[key] = {"device": device, "started": time.time(), "ramBytes": plan_limits["ramBytes"], "restarts": proc_meta.get(key, {}).get("restarts", 0)}
 
     # Catch syntax/runtime failures that exit immediately so the dashboard does
     # not claim a crashed bot was successfully started.
@@ -887,7 +890,7 @@ def start_app_process(user, name, db):
         except OSError:
             tail = ""
         append_log(log_path, f"[{datetime.now()}] Process exited immediately with code {exit_code}.\n")
-        message = f"Bot stopped immediately (exit code {exit_code}). Check Logs for the error."
+        message = "RAM limit reached. The bot was stopped because it tried to use more memory than your package allows." if plan_limits["ramBytes"] else f"Bot stopped immediately (exit code {exit_code}). Check Logs for the error."
         if tail:
             message += "\n" + tail[-700:]
         return {"ok": False, "error": message}
@@ -896,6 +899,7 @@ def start_app_process(user, name, db):
     db["start_times"][app_settings_key(user, name)] = now_ms
     settings["offline_at"] = 0
     settings["sleep_until"] = 0
+    settings["limit_notice"] = ""
     save_db(db)
 
     append_log(log_path, f"[{datetime.now()}] Started with entry={entry}, device={device['platform']}\n")
@@ -963,12 +967,15 @@ def scheduler_loop():
 
                 if p and not is_running and key in processes:
                     # process died on its own (crash)
+                    runtime_meta = proc_meta.get(key, {})
                     tracker_key = f"{user}_{name}"
                     tripped = activity.register_crash(tracker_key)
                     del processes[key]
                     if tkey in db["start_times"]:
                         del db["start_times"][tkey]
                     settings["offline_at"] = now
+                    if runtime_meta.get("ramBytes", 0):
+                        settings["limit_notice"] = "RAM limit reached — this bot was stopped because it exceeded the package RAM limit."
                     changed = True
                     _, _, log_path = app_dirs(user, name)
                     if tripped:
@@ -1164,6 +1171,7 @@ def firebase_session():
             "ramBytes": max(0, int(float(limits.get("ramBytes", 0) or 0))),
             "storageBytes": max(0, int(float(limits.get("storageBytes", 0) or 0))),
         }
+        session["plan_limits_configured"] = all(key in limits for key in ("maxBots", "ramBytes", "storageBytes"))
         return jsonify({"ok": True, "redirect": url_for("index")})
     except FirebaseAuthError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 401
@@ -1214,6 +1222,7 @@ def api_apps():
             "auto_restart": settings.get("auto_restart", False),
             "device": settings.get("device_platform"),
             "remaining_run_min": round(max(0, sleep_hours * 3600 - elapsed) / 60, 1) if running else 0,
+            "limit_notice": settings.get("limit_notice", "") if not running else "",
         })
     return jsonify({"ok": True, "apps": apps_list})
 
@@ -1248,6 +1257,7 @@ def index():
             "device": settings.get("device_platform"),
             "remaining_run_min": round(remaining_run / 60, 1),
             "remaining_wake_min": round(remaining_wake / 60, 1),
+            "limit_notice": settings.get("limit_notice", "") if not running else "",
         })
     display_name = session.get("username", user_name)
     return render_template("index.html", apps=apps_list, username=display_name)
@@ -1271,9 +1281,11 @@ def _do_upload(user_name):
     user_dir = safe_join(UPLOAD_FOLDER, user_name, app_name)
     already_exists = os.path.exists(user_dir)
     limits = get_user_plan_limits()
+    if not limits["configured"]:
+        return jsonify({"ok": False, "error": "Your package limits are not available yet. Refresh the website and sign in again."}), 403
     user_root = safe_join(UPLOAD_FOLDER, user_name)
     existing_bots = sum(1 for item in os.listdir(user_root) if os.path.isdir(safe_join(user_root, item))) if os.path.isdir(user_root) else 0
-    if not already_exists and limits["maxBots"] and existing_bots >= limits["maxBots"]:
+    if not already_exists and existing_bots >= limits["maxBots"]:
         return jsonify({"ok": False, "error": f"Your package allows only {limits['maxBots']} hosted bot(s). Upgrade your package to add another bot."}), 403
     if already_exists and not overwrite:
         return jsonify({"ok": False, "needs_confirm": True, "error": f"'{app_name}' already exists. Overwrite it?"}), 200
@@ -1282,7 +1294,7 @@ def _do_upload(user_name):
     file.save(tmp_zip)
 
     existing_storage = user_storage_bytes(user_name) - (directory_bytes(user_dir) if already_exists else 0)
-    if limits["storageBytes"] and existing_storage + os.path.getsize(tmp_zip) > limits["storageBytes"]:
+    if existing_storage + os.path.getsize(tmp_zip) > limits["storageBytes"]:
         os.remove(tmp_zip)
         return jsonify({"ok": False, "error": "This upload would exceed your package storage limit."}), 413
 
@@ -1327,7 +1339,7 @@ def _do_upload(user_name):
         shutil.rmtree(user_dir, ignore_errors=True)
         return jsonify({"ok": False, "error": "No files were found after extraction; the ZIP may be empty."}), 400
 
-    if limits["storageBytes"] and user_storage_bytes(user_name) > limits["storageBytes"]:
+    if user_storage_bytes(user_name) > limits["storageBytes"]:
         shutil.rmtree(user_dir, ignore_errors=True)
         return jsonify({"ok": False, "error": "The extracted bot exceeds your package storage limit."}), 413
 
