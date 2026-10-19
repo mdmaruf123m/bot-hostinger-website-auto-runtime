@@ -4,6 +4,7 @@ let backendSessionUid = null;
 let apps = [],
   currentProject = "",
   currentFile = "",
+  currentLogName = "",
   logTimer = null;
 async function api(path, options = {}) {
   const r = await fetch("/backend/" + path.replace(/^\//, ""), {
@@ -230,6 +231,9 @@ function showModal(t, html) {
   copyButton.disabled = true;
   copyButton.classList.remove("is-copied");
   copyButton.querySelector(".copy-label").textContent = "Copy logs";
+  const deleteButton = document.getElementById("deleteLogBtn");
+  deleteButton.hidden = true;
+  deleteButton.disabled = true;
   document.getElementById("modalTitle").textContent = t;
   document.getElementById("modalBody").innerHTML = html;
   document.getElementById("modal").style.display = "flex";
@@ -239,6 +243,7 @@ function closeModal() {
   if (logTimer) clearInterval(logTimer);
   logTimer = null;
   document.getElementById("copyLogBtn").hidden = true;
+  document.getElementById("deleteLogBtn").hidden = true;
 }
 async function editEnvironment(n) {
   currentProject = n;
@@ -343,11 +348,29 @@ async function copyCurrentLog() {
     window.setTimeout(() => (label.textContent = "Copy logs"), 1800);
   }
 }
+async function clearCurrentLog() {
+  if (!currentLogName || !confirm("Delete the entire log for " + currentLogName + "?")) return;
+  const button = document.getElementById("deleteLogBtn");
+  button.disabled = true;
+  try {
+    await api("clear_log/" + encodeURIComponent(currentLogName), { method: "POST" });
+    const log = document.getElementById("logContent");
+    if (log) log.textContent = "(No logs available yet)";
+  } catch (error) {
+    Swal.fire("Could not delete logs", error.message, "error");
+  } finally {
+    if (!button.hidden) button.disabled = false;
+  }
+}
 async function showLogs(n) {
+  currentLogName = n;
   showModal("Logs · " + n, '<pre class="log" id="logContent">Loading…</pre>');
   const copyButton = document.getElementById("copyLogBtn");
+  const deleteButton = document.getElementById("deleteLogBtn");
   copyButton.hidden = false;
   copyButton.disabled = true;
+  deleteButton.hidden = false;
+  deleteButton.disabled = true;
   async function refresh() {
     try {
       const { data } = await api("get_log/" + encodeURIComponent(n));
@@ -358,6 +381,7 @@ async function showLogs(n) {
       if (el) el.textContent = e.message;
     } finally {
       copyButton.disabled = false;
+      deleteButton.disabled = false;
     }
   }
   await refresh();
@@ -458,3 +482,4 @@ document
 document.getElementById("modalClose").addEventListener("click", closeModal);
 
 document.getElementById("copyLogBtn").addEventListener("click", copyCurrentLog);
+document.getElementById("deleteLogBtn").addEventListener("click", clearCurrentLog);

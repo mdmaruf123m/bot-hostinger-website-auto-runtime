@@ -1426,6 +1426,23 @@ def get_log(name):
         "device": settings.get("device_platform")
     })
 
+@app.route("/clear_log/<name>", methods=["POST"])
+def clear_log(name):
+    if not require_login():
+        return jsonify({"ok": False, "error": "Login required"}), 401
+    user_name = current_user_key()
+    if not is_safe_component(name):
+        return jsonify({"ok": False, "error": "Invalid app name"}), 400
+    _, _, log_path = app_dirs(user_name, name)
+    try:
+        # Truncate in place so a running process can continue appending to this log.
+        with open(log_path, "w", encoding="utf-8"):
+            pass
+    except OSError:
+        app.logger.exception("Could not clear app log")
+        return jsonify({"ok": False, "error": "Could not clear this app's log."}), 500
+    return jsonify({"ok": True, "message": "Log cleared."})
+
 @app.route("/download/<name>")
 def download_app(name):
     if not require_login():

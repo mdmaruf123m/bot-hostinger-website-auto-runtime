@@ -286,6 +286,14 @@ body {
   border-color: #50d5a0;
   color: #a8f1d6;
 }
+.delete-log {
+  border-color: #ff6d8666;
+  color: #ffdce3;
+}
+.delete-log:hover:not(:disabled) {
+  border-color: #ff8298;
+  background: linear-gradient(145deg, #65213a, #211025);
+}
 .clipboard-helper {
   position: fixed;
   top: 0;
