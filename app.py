@@ -788,6 +788,33 @@ def start_app_process(user, name, db):
         append_log(log_path, f"Environment secret error: {e}\n")
         return {"ok": False, "error": str(e)}
 
+    if kind == "php" and token_available:
+        php_env_probe = '$v=getenv("TELEGRAM_BOT_TOKEN"); echo ($v !== false && trim($v) !== "") ? "present" : "missing";'
+        try:
+            probe = subprocess.run(
+                [cmd[0], "-r", php_env_probe], env=env, capture_output=True,
+                text=True, timeout=8,
+            )
+            php_can_read_token = probe.returncode == 0 and probe.stdout.strip() == "present"
+        except Exception:
+            php_can_read_token = False
+        if not php_can_read_token:
+            append_log(log_path, "Selected PHP CLI did not expose app Env Vars; trying the portable PHP runtime.\n")
+            try:
+                portable_php = ensure_php_runtime(log_cb)
+                portable_probe = subprocess.run(
+                    [portable_php, "-r", php_env_probe], env=env,
+                    capture_output=True, text=True, timeout=8,
+                )
+                if portable_probe.returncode != 0 or portable_probe.stdout.strip() != "present":
+                    raise RuntimeError("Portable PHP also cannot read the app environment variable")
+                cmd = [portable_php, entry]
+                append_log(log_path, "Portable PHP CLI can read TELEGRAM_BOT_TOKEN; starting the bot with it (value hidden).\n")
+            except Exception as e:
+                message = f"PHP could not read the saved TELEGRAM_BOT_TOKEN environment variable: {e}"
+                append_log(log_path, message + "\n")
+                return {"ok": False, "error": message}
+
     trim_log_if_needed(log_path)
     log_file = open(log_path, "a", encoding="utf-8", errors="ignore")
     try:
