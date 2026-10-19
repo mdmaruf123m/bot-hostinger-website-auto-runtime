@@ -39,3 +39,8 @@ BotKeep-এর plain HTTP port-এ Pages proxy পাঠানো যাবে �
 - Authentication → **Settings → Authorized domains**-এ Pages-এর `*.pages.dev` hostname যোগ করুন।
 - Firestore Database-এ login/register flow-এর জন্য signed-in user যেন নিজের `users/{uid}` profile read/write করতে পারে, সেটি নিশ্চিত করুন। Registration browser থেকেই profile তৈরি/সিঙ্ক করে; bot backend Firebase profile API চালায় না। Admin panel-এর বিদ্যমান user-management rules এবং `users/__panel_config__` setting document-এর read/write permission-ও বজায় রাখুন।
 - private `admin.html` নতুন Firebase project-এর সঙ্গে যুক্ত করা হয়েছে, কিন্তু তার Firestore list/block/delete কার্যক্রম Security Rules-এর অনুমতির ওপর নির্ভর করবে। Client-side password gate Firestore Security Rules-এর বিকল্প নয়।
+
+
+## Frontend page ও source file layout
+
+Cloudflare Pages-এর build output directory `public` থাকবে (build command ফাঁকা)। `public/index.html` root `/` থেকে `dashboard.html`-এ পাঠায়; আলাদা পেজগুলো হলো `login.html`, `register.html`, `dashboard.html`, `plan.html` এবং `settings.html`। আগের `/login/` ও `/register/` ঠিকানার জন্য compatibility redirects রাখা আছে। Shared styles `public/css/app.css` ও `public/css/auth.css`-এ, আর Firebase initialization, navigation/auth guard, dashboard controls এবং page-specific behavior `public/js/`-এ ভাগ করা হয়েছে। Menu drawer-এর open/close transition দ্রুত করা হয়েছে (প্রায় 150 ms)।

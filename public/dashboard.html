@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#050217" />
+    <title>MY HOST PANEL · Dashboard</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <main class="wrap">
+      <div id="accountMenuMount"></div>
+      <section class="heading">
+        <div>
+          <h1>Hosting overview</h1>
+          <p class="muted">Manage your Python, Node.js, and PHP bots.</p>
+        </div>
+        <button class="btn outline" id="refreshApps" type="button">
+          <i class="fa-solid fa-arrows-rotate"></i> Refresh
+        </button>
+      </section>
+      <section class="stats">
+        <div class="stat">
+          <span>Total apps</span><strong id="total">0</strong>
+        </div>
+        <div class="stat">
+          <span>Running</span><strong id="running">0</strong>
+        </div>
+        <div class="stat">
+          <span>Offline</span><strong id="offline">0</strong>
+        </div>
+      </section>
+      <section class="upload">
+        <i
+          class="fa-solid fa-cloud-arrow-up upload-icon"
+          aria-hidden="true"
+        ></i>
+        <p>Upload your ZIP file (Maximum 100 MB)</p>
+        <input id="zip" type="file" accept=".zip" hidden /><button
+          class="btn"
+          id="chooseZip"
+          type="button"
+        >
+          <i class="fa-solid fa-upload"></i> Choose ZIP
+        </button>
+        <div id="uploadStatus" class="muted"></div>
+      </section>
+      <div class="toolbar">
+        <input
+          id="search"
+          type="search"
+          placeholder="Search your apps"
+        /><select id="filter">
+          <option value="all">All statuses</option>
+          <option value="running">Running</option>
+          <option value="offline">Offline</option>
+        </select>
+      </div>
+      <section id="apps"><div class="empty">Loading your apps…</div></section>
+    </main>
+    <div class="modal-bg" id="modal">
+      <section class="modal">
+        <div class="modal-head">
+          <h3 id="modalTitle"></h3>
+          <button
+            class="x"
+            id="modalClose"
+            type="button"
+            aria-label="Close dialog"
+          >
+            &times;
+          </button>
+        </div>
+        <div id="modalBody" class="modal-body"></div>
+      </section>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="/js/firebase-init.js"></script>
+    <script src="/js/common.js"></script>
+    <script src="/js/dashboard.js"></script>
+  </body>
+</html>

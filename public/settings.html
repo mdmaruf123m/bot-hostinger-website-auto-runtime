@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#050217" />
+    <title>Settings · MY HOST PANEL</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <main class="wrap">
+      <div id="accountMenuMount"></div>
+      <section class="heading">
+        <div>
+          <h1>Settings</h1>
+          <p class="muted">Manage your profile details.</p>
+        </div>
+      </section>
+      <section class="surface-card settings-panel">
+        <div class="settings-mark"><i class="fa-solid fa-user-gear"></i></div>
+        <h2>Account profile</h2>
+        <p class="muted">Update the name shown in your hosting panel.</p>
+        <form id="settingsForm" class="settings-form">
+          <label
+            >Display name<input
+              id="settingsName"
+              type="text"
+              minlength="2"
+              maxlength="80"
+              required
+              autocomplete="name" /></label
+          ><label
+            >Email address<input id="settingsEmail" type="email" readonly
+          /></label>
+          <div id="settingsStatus" class="settings-status" role="status"></div>
+          <button class="btn" type="submit">
+            <i class="fa-solid fa-floppy-disk"></i> Save changes
+          </button>
+        </form>
+      </section>
+    </main>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="/js/firebase-init.js"></script>
+    <script src="/js/common.js"></script>
+    <script src="/js/settings.js"></script>
+  </body>
+</html>

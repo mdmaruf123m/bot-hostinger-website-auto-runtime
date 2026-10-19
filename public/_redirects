@@ -1,0 +1,7 @@
+/login /login.html 302
+/login/ /login.html 302
+/register /register.html 302
+/register/ /register.html 302
+/dashboard /dashboard.html 302
+/plans /plan.html 302
+/settings /settings.html 302

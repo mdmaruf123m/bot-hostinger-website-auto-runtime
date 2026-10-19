@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#050217" />
+    <title>Plans · MY HOST PANEL</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="/css/app.css" />
+  </head>
+  <body>
+    <main class="wrap">
+      <div id="accountMenuMount"></div>
+      <section class="heading">
+        <div>
+          <h1>Plans</h1>
+          <p class="muted">View your hosting plan and account access.</p>
+        </div>
+      </section>
+      <section class="surface-card plan-panel">
+        <div class="plan-orb">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m12 3 9 5-9 5-9-5 9-5Z" />
+            <path d="m3 12 9 5 9-5M3 16l9 5 9-5M12 13v8" />
+          </svg>
+        </div>
+        <span class="plan-eyebrow">PLAN MANAGEMENT</span>
+        <h2>Plans are not enabled yet</h2>
+        <p class="muted">
+          This panel does not have plan or billing management configured.
+          Contact the panel administrator for information about your access.
+        </p>
+        <a class="btn outline" href="/dashboard.html"
+          ><i class="fa-solid fa-arrow-left"></i> Back to dashboard</a
+        >
+      </section>
+    </main>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="/js/firebase-init.js"></script>
+    <script src="/js/common.js"></script>
+  </body>
+</html>
