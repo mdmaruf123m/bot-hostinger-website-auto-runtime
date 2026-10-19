@@ -776,7 +776,14 @@ def start_app_process(user, name, db):
     env.update(runtime_env)
     env["PYTHONUNBUFFERED"] = "1"
     try:
-        env.update(get_app_env_values(user, name))
+        app_env_values = get_app_env_values(user, name)
+        env.update(app_env_values)
+        token_available = bool(app_env_values.get("TELEGRAM_BOT_TOKEN", "").strip())
+        append_log(
+            log_path,
+            "App Env Vars diagnostic: TELEGRAM_BOT_TOKEN "
+            + ("is present (value hidden).\n" if token_available else "is absent or empty for this app.\n"),
+        )
     except RuntimeError as e:
         append_log(log_path, f"Environment secret error: {e}\n")
         return {"ok": False, "error": str(e)}
