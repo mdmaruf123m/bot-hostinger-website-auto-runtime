@@ -831,12 +831,16 @@ def start_app_process(user, name, db):
     try:
         app_env_values = get_app_env_values(user, name)
         env.update(app_env_values)
+        # Python apps use their own config.py/main.py configuration by default.
+        # TELEGRAM_BOT_TOKEN is only a diagnostic/compatibility setting for
+        # Node.js and PHP apps; its absence must never block Python apps.
         token_available = bool(app_env_values.get("TELEGRAM_BOT_TOKEN", "").strip())
-        append_log(
-            log_path,
-            "App Env Vars diagnostic: TELEGRAM_BOT_TOKEN "
-            + ("is present (value hidden).\n" if token_available else "is absent or empty for this app.\n"),
-        )
+        if kind in ("node", "php"):
+            append_log(
+                log_path,
+                "App Env Vars diagnostic: TELEGRAM_BOT_TOKEN "
+                + ("is present (value hidden).\n" if token_available else "is absent or empty for this app.\n"),
+            )
     except RuntimeError as e:
         append_log(log_path, f"Environment secret error: {e}\n")
         return {"ok": False, "error": str(e)}
