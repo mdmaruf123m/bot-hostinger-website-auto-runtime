@@ -116,6 +116,14 @@ def _local_python_module(root: str, module: str) -> bool:
     name = module.split(".", 1)[0]
     if os.path.isfile(os.path.join(root, name + ".py")) or os.path.isfile(os.path.join(root, name, "__init__.py")):
         return True
+    # Python 3 namespace packages may intentionally omit __init__.py. A
+    # directory containing local .py sources is still project code, not a
+    # package that should be installed from PyPI.
+    local_dir = os.path.join(root, name)
+    if os.path.isdir(local_dir) and any(
+        filename.endswith(".py") for filename in os.listdir(local_dir)
+    ):
+        return True
     excluded = {".git", ".venv", "venv", "node_modules", "vendor", "__pycache__"}
     for base, dirs, files in os.walk(root):
         dirs[:] = [d for d in dirs if d not in excluded]
