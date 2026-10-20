@@ -1163,28 +1163,51 @@ def _firestore_value(field):
     return None
 
 
-def get_server_plan_limits(uid, id_token):
-    """Read limits from users/{uid}; never trust limits supplied by the browser."""
-    url = FIRESTORE_USER_DOCUMENT + urllib.parse.quote(uid, safe="")
-    req = urllib.request.Request(
-        url,
-        headers={"Authorization": f"Bearer {id_token}", "Accept": "application/json"},
+def _firestore_document(path, id_token):
+    url = (
+        "https://firestore.googleapis.com/v1/projects/"
+        f"{FIREBASE_WEB_CONFIG['projectId']}/databases/(default)/documents/"
+        + "/".join(urllib.parse.quote(part, safe="") for part in path.split("/"))
     )
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {id_token}", "Accept": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=8) as response:
-            document = json.loads(response.read().decode("utf-8"))
+            return json.loads(response.read().decode("utf-8"))
     except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, ValueError) as exc:
-        raise FirebaseAuthError("Could not read the account package limits from Firestore.") from exc
+        return None
 
-    fields = document.get("fields") or {}
+
+def get_server_plan_limits(uid, id_token):
+    """Resolve limits from the server-visible plan, never from browser input."""
+    profile = _firestore_document(f"users/{uid}", id_token) or {}
+    fields = profile.get("fields") or {}
+
+    # Prefer the canonical plan document so stale/missing copied quota fields
+    # in users/{uid} cannot turn a valid package into a zero-bot package.
+    plan_id = _firestore_value(fields.get("activePlanId"))
+    if not plan_id:
+        billing = _firestore_document("admin_config/billing", id_token) or {}
+        billing_fields = billing.get("fields") or {}
+        plan_id = _firestore_value(billing_fields.get("defaultFreePlanId"))
+
+    plan_fields = {}
+    if plan_id:
+        plan_doc = _firestore_document(f"plans/{plan_id}", id_token) or {}
+        plan_fields = plan_doc.get("fields") or {}
+
+    source = plan_fields or fields
     required = ("maxBots", "ramBytes", "storageBytes")
-    if not all(name in fields for name in required):
-        raise FirebaseAuthError("Your account does not have a configured package limit yet.")
-    return {
-        "maxBots": max(0, int(float(_firestore_value(fields["maxBots"]) or 0))),
-        "ramBytes": max(0, int(float(_firestore_value(fields["ramBytes"]) or 0))),
-        "storageBytes": max(0, int(float(_firestore_value(fields["storageBytes"]) or 0))),
+    if not all(name in source for name in required):
+        raise FirebaseAuthError("Your account does not have a configured package limit yet. Ask an administrator to assign a package.")
+
+    limits = {
+        "maxBots": max(0, int(float(_firestore_value(source["maxBots"]) or 0))),
+        "ramBytes": max(0, int(float(_firestore_value(source["ramBytes"]) or 0))),
+        "storageBytes": max(0, int(float(_firestore_value(source["storageBytes"]) or 0))),
     }
+    if limits["maxBots"] <= 0:
+        raise FirebaseAuthError("Your assigned package currently allows no hosted bots. Ask an administrator to update the package limit.")
+    return limits
 
 
 def firebase_admin_services():
