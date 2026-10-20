@@ -905,7 +905,15 @@ def start_app_process(user, name, db):
         except OSError:
             tail = ""
         append_log(log_path, f"[{datetime.now()}] Process exited immediately with code {exit_code}.\n")
-        message = "RAM limit reached. The bot was stopped because it tried to use more memory than your package allows." if plan_limits["ramBytes"] else f"Bot stopped immediately (exit code {exit_code}). Check Logs for the error."
+        tail_lower = tail.lower()
+        memory_failure = exit_code == -9 or any(marker in tail_lower for marker in (
+            "memoryerror", "out of memory", "cannot allocate memory", "memory limit", "rlimit_as"
+        ))
+        message = (
+            "RAM limit reached. The bot was stopped because it tried to use more memory than your package allows."
+            if memory_failure else
+            f"Bot stopped immediately (exit code {exit_code}). Check Logs for the startup error."
+        )
         if tail:
             message += "\n" + tail[-700:]
         return {"ok": False, "error": message}
